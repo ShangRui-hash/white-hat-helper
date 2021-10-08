@@ -48,16 +48,19 @@ nmap基本都设计好了，主要涉及：
 这个项目用shell脚本实现 扫描+攻击
 - [portMonitor](https://github.com/wantongtang/portMonitor)
 这个基于nmap实现的一个端口监控程序，用于监控公司的端口
+- [linglong](https://github.com/awake1t/linglong)
+  
 ##### 可以参考的资料：
 - [Python+Django+AnsiblePlaybook自动化运维项目实战](https://coding.imooc.com/class/160.html)
 - [诸神之眼——Nmap网络安全审计技术揭秘](https://item.jd.com/12165817.html?cu=true&utm_source=www.baidu.com&utm_medium=tuiguang&utm_campaign=t_2016327531_&utm_term=879f6bb2e77d4041aa459e049bb24c86)
+- 
 
 gui界面：nmap官方有zenmap，可以参考：
 ![avatar](https://img-blog.csdnimg.cn/20211008175010946.png?x-oss-process=image/watermark,type_ZHJvaWRzYW5zZmFsbGJhY2s,shadow_50,text_Q1NETiBA5peg5Zyo5peg5LiN5Zyo,size_20,color_FFFFFF,t_70,g_se,x_16)
 ![avatar](https://img-blog.csdnimg.cn/20211008175058296.png?x-oss-process=image/watermark,type_ZHJvaWRzYW5zZmFsbGJhY2s,shadow_50,text_Q1NETiBA5peg5Zyo5peg5LiN5Zyo,size_20,color_FFFFFF,t_70,g_se,x_16)
 ![avatar](https://img-blog.csdnimg.cn/20211008175154645.png?x-oss-process=image/watermark,type_ZHJvaWRzYW5zZmFsbGJhY2s,shadow_50,text_Q1NETiBA5peg5Zyo5peg5LiN5Zyo,size_20,color_FFFFFF,t_70,g_se,x_16)
 
-idea:
+##### idea:
 1. 我们可以做成那种任务式的扫描器。用户可以添加多个扫描任务。让多个任务同时去跑,后端提供一个接口，可以添加扫描任务。添加完扫描任务后，这个任务就在后台去跑。前端可以继续添加更多的扫描任务。后端向前实时反馈每个任务进行的进度。 
 2. 可以让这个项目为SRC漏洞挖掘服务。SRC应急响应平台一般会向白帽提供一个域名列表作为授权渗透测试的资产列表。如果我们的工具可以以公司为单元，来管理扫描到的资产，效果一定很赞。
    例如：联想的src 给的域名列表如下：
