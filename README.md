@@ -63,6 +63,7 @@ idea:
    例如：联想的src 给的域名列表如下：
    ![avatar](https://img-blog.csdnimg.cn/20211008234136815.png?x-oss-process=image/watermark,type_ZHJvaWRzYW5zZmFsbGJhY2s,shadow_50,text_Q1NETiBA5peg5Zyo5peg5LiN5Zyo,size_20,color_FFFFFF,t_70,g_se,x_16)   
    我们将该域名列表输入工具，工具能自动根据这些域名扫描出联想公司具体有哪些资产，例如：
+   - 根据域名列表通过多种手段查出来所有子域名。（比如通过https证书、通过字典爆破、通过公开信息收集）
    - 哪些域名用了cdn
    - 域名的真实ip是多少
    - 哪些站点看似独立，但是实际部署在同一个主机上。
