@@ -38,14 +38,15 @@ nmap基本都设计好了，主要涉及：
 前端gui可以选用react或者vue 或者qt。为了可视化方便，可以考虑采用react和vue这类的web前端。然后前后端用websocket建立长连接。实现数据的实时交互。
 
 
-语言选择：
-考虑go或者python
+#### 语言选择：
+- 后端：考虑go或者python
+- 前端：考虑vue 或者react ，可以结合Echarts做数据可视化
 
 
 ##### 可以参考的开源项目：
-[NmapScaner](https://github.com/fuzz-security/NmapScaner/blob/master/scaner.sh)
+- [NmapScaner](https://github.com/fuzz-security/NmapScaner/blob/master/scaner.sh)
 这个项目用shell脚本实现 扫描+攻击
-[portMonitor](https://github.com/wantongtang/portMonitor)
+- [portMonitor](https://github.com/wantongtang/portMonitor)
 这个基于nmap实现的一个端口监控程序，用于监控公司的端口
 
 gui界面：nmap官方有zenmap，可以参考：
