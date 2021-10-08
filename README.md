@@ -49,7 +49,8 @@ nmap基本都设计好了，主要涉及：
 - [portMonitor](https://github.com/wantongtang/portMonitor)
 这个基于nmap实现的一个端口监控程序，用于监控公司的端口
 - [linglong](https://github.com/awake1t/linglong)
-  
+  一款甲方资产巡航扫描系统。系统定位是发现资产，进行端口爆破。帮助企业更快发现弱口令问题。主要功能包括: 资产探测、端口爆破、定时任务、管理后台识别、报表展示
+  ![avatar](https://github.com/awake1t/linglong/blob/master/img/index.gif)
 ##### 可以参考的资料：
 - [Python+Django+AnsiblePlaybook自动化运维项目实战](https://coding.imooc.com/class/160.html)
 - [诸神之眼——Nmap网络安全审计技术揭秘](https://item.jd.com/12165817.html?cu=true&utm_source=www.baidu.com&utm_medium=tuiguang&utm_campaign=t_2016327531_&utm_term=879f6bb2e77d4041aa459e049bb24c86)
