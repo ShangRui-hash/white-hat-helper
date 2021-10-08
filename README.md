@@ -58,8 +58,11 @@ gui界面：nmap官方有zenmap，可以参考：
 ![avatar](https://img-blog.csdnimg.cn/20211008175154645.png?x-oss-process=image/watermark,type_ZHJvaWRzYW5zZmFsbGJhY2s,shadow_50,text_Q1NETiBA5peg5Zyo5peg5LiN5Zyo,size_20,color_FFFFFF,t_70,g_se,x_16)
 
 idea:
-我们可以做成那种任务式的扫描器。用户可以添加多个扫描任务。让多个任务同时去跑  
-后端提供一个接口，可以添加扫描任务。  
-添加完扫描任务后，这个任务就在后台去跑。    
-前端可以继续添加更多的扫描任务。    
-后端向前实时反馈每个任务进行的进度。    
+1. 我们可以做成那种任务式的扫描器。用户可以添加多个扫描任务。让多个任务同时去跑,后端提供一个接口，可以添加扫描任务。添加完扫描任务后，这个任务就在后台去跑。前端可以继续添加更多的扫描任务。后端向前实时反馈每个任务进行的进度。 
+2. 可以让这个项目为SRC漏洞挖掘服务。SRC应急响应平台一般会向白帽提供一个域名列表作为授权渗透测试的资产列表。如果我们的工具可以以公司为单元，来管理扫描到的资产，效果一定很赞。
+   例如：联想的src 给的域名列表如下：
+   ![avatar](https://img-blog.csdnimg.cn/20211008234136815.png?x-oss-process=image/watermark,type_ZHJvaWRzYW5zZmFsbGJhY2s,shadow_50,text_Q1NETiBA5peg5Zyo5peg5LiN5Zyo,size_20,color_FFFFFF,t_70,g_se,x_16)   
+   我们将该域名列表输入工具，工具能自动根据这些域名扫描出联想公司具体有哪些资产，例如：
+   - 哪些域名用了cdn
+   - 域名的真实ip是多少
+   - 哪些站点看似独立，但是实际部署在同一个主机上。
