@@ -48,6 +48,9 @@ nmap基本都设计好了，主要涉及：
 这个项目用shell脚本实现 扫描+攻击
 - [portMonitor](https://github.com/wantongtang/portMonitor)
 这个基于nmap实现的一个端口监控程序，用于监控公司的端口
+##### 可以参考的资料：
+- [Python+Django+AnsiblePlaybook自动化运维项目实战](https://coding.imooc.com/class/160.html)
+- [诸神之眼——Nmap网络安全审计技术揭秘](https://item.jd.com/12165817.html?cu=true&utm_source=www.baidu.com&utm_medium=tuiguang&utm_campaign=t_2016327531_&utm_term=879f6bb2e77d4041aa459e049bb24c86)
 
 gui界面：nmap官方有zenmap，可以参考：
 ![avatar](https://img-blog.csdnimg.cn/20211008175010946.png?x-oss-process=image/watermark,type_ZHJvaWRzYW5zZmFsbGJhY2s,shadow_50,text_Q1NETiBA5peg5Zyo5peg5LiN5Zyo,size_20,color_FFFFFF,t_70,g_se,x_16)
