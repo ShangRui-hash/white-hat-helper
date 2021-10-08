@@ -58,8 +58,8 @@ gui界面：nmap官方有zenmap，可以参考：
 ![avatar](https://img-blog.csdnimg.cn/20211008175154645.png?x-oss-process=image/watermark,type_ZHJvaWRzYW5zZmFsbGJhY2s,shadow_50,text_Q1NETiBA5peg5Zyo5peg5LiN5Zyo,size_20,color_FFFFFF,t_70,g_se,x_16)
 
 idea:
-我们可以做成那种任务式的扫描器。用户可以添加多个扫描任务。让多个任务同时去跑
+我们可以做成那种任务式的扫描器。用户可以添加多个扫描任务。让多个任务同时去跑  
 后端提供一个接口，可以添加扫描任务。  
-添加完扫描任务后，这个任务就在后台去跑。  
-前端可以继续添加更多的扫描任务。  
-后端向前实时反馈每个任务进行的进度。  
+添加完扫描任务后，这个任务就在后台去跑。    
+前端可以继续添加更多的扫描任务。    
+后端向前实时反馈每个任务进行的进度。    
