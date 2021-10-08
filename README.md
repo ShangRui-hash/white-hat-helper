@@ -30,8 +30,7 @@ nmap基本都设计好了，主要涉及：
 
 ##### 2.构建数据库用于网络设备资产信息的存取，数据库类型不做要求；
 
-数据库可以考虑mysql，redis。缺点是：导致软件便携型下降。
-
+数据库可以考虑mysql，redis。缺点是：导致软件便携型下降。可以考虑封装成一个docker镜像。
 也可以考虑 blot.db 这种文件型的数据库。优点是软件易于部署，便携型很高。
 
 ##### 3.设计实现前端界面，可视化探测过程，包括但不限于网段选择、探测结果显示、目标设备资产显示。
@@ -42,3 +41,21 @@ nmap基本都设计好了，主要涉及：
 语言选择：
 考虑go或者python
 
+
+##### 可以参考的开源项目：
+[NmapScaner](https://github.com/fuzz-security/NmapScaner/blob/master/scaner.sh)
+这个项目用shell脚本实现 扫描+攻击
+[portMonitor](https://github.com/wantongtang/portMonitor)
+这个基于nmap实现的一个端口监控程序，用于监控公司的端口
+
+gui界面：nmap官方有zenmap，可以参考：
+![avatar](https://img-blog.csdnimg.cn/20211008175010946.png?x-oss-process=image/watermark,type_ZHJvaWRzYW5zZmFsbGJhY2s,shadow_50,text_Q1NETiBA5peg5Zyo5peg5LiN5Zyo,size_20,color_FFFFFF,t_70,g_se,x_16)
+![avatar](https://img-blog.csdnimg.cn/20211008175058296.png?x-oss-process=image/watermark,type_ZHJvaWRzYW5zZmFsbGJhY2s,shadow_50,text_Q1NETiBA5peg5Zyo5peg5LiN5Zyo,size_20,color_FFFFFF,t_70,g_se,x_16)
+![avatar](https://img-blog.csdnimg.cn/20211008175154645.png?x-oss-process=image/watermark,type_ZHJvaWRzYW5zZmFsbGJhY2s,shadow_50,text_Q1NETiBA5peg5Zyo5peg5LiN5Zyo,size_20,color_FFFFFF,t_70,g_se,x_16)
+
+idea:
+我们可以做成那种任务式的扫描器。用户可以添加多个扫描任务。让多个任务同时去跑
+后端提供一个接口，可以添加扫描任务。  
+添加完扫描任务后，这个任务就在后台去跑。  
+前端可以继续添加更多的扫描任务。  
+后端向前实时反馈每个任务进行的进度。  
