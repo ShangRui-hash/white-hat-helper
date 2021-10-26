@@ -164,3 +164,6 @@ nmap -p 80,443 --script http-methods 101.200.142.148 (鸡肋玩意)
 fofa:https://fofa.so
 censys:https://search.censys.io
 shodan:https://www.shodan.io/
+
+![输入图片说明](https://images.gitee.com/uploads/images/2021/1026/234623_8076c0c3_8582605.png "屏幕截图.png")
+![输入图片说明](https://images.gitee.com/uploads/images/2021/1026/234641_2cdae172_8582605.png "屏幕截图.png")
