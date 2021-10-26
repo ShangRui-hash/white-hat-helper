@@ -103,8 +103,64 @@ shodan 详情页
 3.其他功能：
 为了便于团队协作，应该再加一个登录功能，进行访问控制
 
+#### 详细设计：
+扫描出所有子域名->扫描子域名的ip->扫描ip开放的端口以及端口运行的服务（服务版本)->如果是web服务，扫描所有的web目录，并获取title信息
+1. 扫描所有子域名
+输入：父域名列表
+输出：所有子域名列表
+扫描方式：直接调用第三方扫描工具 one-for-all
+
+2. 扫描子域名的ip
+3. 扫描ip的操作系统版本、开放的端口以及端口上跑的什么服务  
+输入：ip列表  
+输出：  
+
+```json
+[
+{
+    "ip":"112.123.123.123",
+    "port":[80,22,23,8080]
+},
+{
+    "ip":"112.123.123.123",
+    "port":[80,22,23,8080]
+},
+]
+```
+扫描方法：
+方案一：shell脚本 调nmap
+
+```
+nmap 指定目标有三种方式，同时支持域名和ip地址：
+1.以空格分隔的列表 101.200.142.148 101.200.142.150
+2.10.0.0-255.1-254
+3.101.200.142.148/24
+
+nmap  -p1-1000 -sV -O  101.200.142.148 101.200.142.150
+nmap  -p22 -sV -O 101.200.142.148/24 --open -oX result.xml
+```
+
+方案二：python3 nmap库 https://github.com/nmmapper/python3-nmap
+
+4.如果是web服务（http或者ssl），扫描所有的web目录，并获取title信息
+方案一：
+调用dirsearch 枚举子目录
+```
+dirsearch -u 101.200.142.148 --full-url --random-agent  -o dirsearch.json --format json
+```
+
+```
+nmap -p 80,443 --script http-methods 101.200.142.148 (鸡肋玩意)
+```
+#### 数据库设计
+
 
 #### 团队分工：
 - 张：前端
 - 尚：后端
 - 姜：shell脚本调度nmap
+
+#### 前端可以参考的：
+fofa:https://fofa.so
+censys:https://search.censys.io
+shodan:https://www.shodan.io/
