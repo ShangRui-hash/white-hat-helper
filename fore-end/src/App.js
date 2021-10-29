@@ -1,7 +1,7 @@
 import {Redirect, Route, Switch} from 'react-router-dom'
 import './App.less';
-import Home from "./components/home";
-import HomeLogin from "./components/homelogin";
+import Home from "./pages/home";
+import HomeLogin from "./pages/homelogin";
 
 function App() {
   return (
@@ -9,7 +9,7 @@ function App() {
           <Switch>
               <Route path='/homelogin' component={HomeLogin}/>
               <Route path='/home' component={Home}/>
-              <Redirect to='/home'/>
+              <Redirect to='/homelogin'/>
           </Switch>
       </div>
   );
