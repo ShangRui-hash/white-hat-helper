@@ -9,6 +9,7 @@ import {
 import Header from "./header";
 import HomePage from "./components/homePage";
 import CompanyPage from "./components/companyPage";
+import PropertyPage from "./components/propertyPage";
 import MissionPage from "./components/missionPage";
 import './css/index.less'
 import {Link, Redirect, Route, Switch} from "react-router-dom";
@@ -53,8 +54,9 @@ class Home extends Component {
                     <Content className='home-layout-content'>
                         <Switch>
                             <Route path='/home/HomePage' component={HomePage}/>
-                            <Route path='/home/CompanyPage' component={CompanyPage}/>
+                            <Route exact path='/home/CompanyPage' component={CompanyPage}/>
                             <Route path='/home/MissionPage' component={MissionPage}/>
+                            <Route exact path='/home/CompanyPage/PropertyPage' component={PropertyPage}/>
                             <Redirect to='/home/HomePage'/>
                         </Switch>
                     </Content>
