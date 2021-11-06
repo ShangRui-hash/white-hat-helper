@@ -10,7 +10,7 @@ const columns = [
         key: 'companyName',
         render: text =>(
             <Link
-                to={'/home/CompanyPage/PropertyPage'}
+                to={'/home/CompanyPage/AssetsPage'}
             >
                 <Button className='my-font' type='link'>{text}</Button>
             </Link>
