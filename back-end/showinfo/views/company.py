@@ -2,7 +2,6 @@ import json
 import time
 import logging
 
-from django.shortcuts import render
 from django.views.decorators.http import require_http_methods
 from scanhosts.models import Company
 from lib.utils.response import resp_success, resp_fail

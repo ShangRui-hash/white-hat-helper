@@ -64,8 +64,8 @@ def run_handler(request):
         return resp_fail("非法的任务id")
     if not Task.objects.filter(id=task_id).exists():
         return resp_fail("任务不存在")
-    if Task.objects.filter(id=task_id, status="running").exists():
-        return resp.fail("该任务已经在运行中")
+    # if Task.objects.filter(id=task_id, status="running").exists():
+    #     return resp_fail("该任务已经在运行中")
     #2.业务逻辑
     task = Task.objects.get(id=task_id)
     #2.1 启动任务

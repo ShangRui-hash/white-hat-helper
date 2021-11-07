@@ -17,12 +17,14 @@ from django.contrib import admin
 from django.urls import path
 from django.views.decorators.csrf import csrf_exempt
 import scanhosts.views as scanhosts
-import showinfo.views as showinfo
+from showinfo.views.company import company_handler
+from showinfo.views.hosts import hosts_handler
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('company',csrf_exempt(showinfo.company_handler)),
+    path('company',csrf_exempt(company_handler)),
     path('task',csrf_exempt(scanhosts.task_handler)),
     path('run',csrf_exempt(scanhosts.run_handler)),
+    path('hosts',csrf_exempt(hosts_handler))
     # path('login',csrf_exempt(scanhosts.views.))
 ]
