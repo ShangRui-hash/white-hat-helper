@@ -1,7 +1,7 @@
 from django.views.decorators.http import require_http_methods
 from lib.redis.host import HostSet
+from lib.redis.port import HostPortHash
 from lib.utils.response import resp_fail, resp_success
-
 
 @require_http_methods(["GET", "DELETE"])
 def hosts_handler(request):
@@ -27,7 +27,14 @@ def get_hosts_handler(request):
     count = int(count)
     company_id = int(company_id)
     #2.业务逻辑
+    results = {}
+    #2.1 获取所有主机
     host_set = HostSet(company_id)
     hosts = host_set.smembers(offset, count)
+    #2.2 获取主机的所有端口和服务信息
+    host_port_hash = HostPortHash(company_id)
+    for host in hosts: 
+        results[host]=host_port_hash.get(host)
     #3.返回响应
-    return resp_success("获取资产成功", hosts)
+    print(results)
+    return resp_success("获取资产成功", results)
