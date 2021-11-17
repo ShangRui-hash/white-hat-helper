@@ -19,12 +19,16 @@ from django.views.decorators.csrf import csrf_exempt
 import scanhosts.views as scanhosts
 from showinfo.views.company import company_handler
 from showinfo.views.hosts import hosts_handler
+import  account.views as account
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('company',csrf_exempt(company_handler)),
     path('task',csrf_exempt(scanhosts.task_handler)),
     path('run',csrf_exempt(scanhosts.run_handler)),
-    path('hosts',csrf_exempt(hosts_handler))
+    path('hosts',csrf_exempt(hosts_handler)),
+    path('login',csrf_exempt(account.login)),
+    path('register', csrf_exempt(account.register)),
+    
     # path('login',csrf_exempt(scanhosts.views.))
 ]
