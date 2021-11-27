@@ -14,7 +14,7 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path
+from django.urls import path,include 
 from django.views.decorators.csrf import csrf_exempt
 import scanhosts.views as scanhosts
 from showinfo.views.company import company_handler
@@ -29,6 +29,7 @@ urlpatterns = [
     path('hosts',csrf_exempt(hosts_handler)),
     path('login',csrf_exempt(account.login)),
     path('register', csrf_exempt(account.register)),
+    path('api-auth/',include('rest_framework.urls')) #django restfulapi framework 登录退出
     
     # path('login',csrf_exempt(scanhosts.views.))
 ]

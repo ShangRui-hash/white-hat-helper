@@ -42,6 +42,8 @@ INSTALLED_APPS = [
     'scanhosts',
     'showinfo',
     'account',
+    'rest_framework', #django restfulapi framework
+    'rest_framework.authtoken' #django restfulapi framework 自带的token认证
 ]
 
 MIDDLEWARE = [
@@ -183,4 +185,30 @@ CACHES = {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         }
     }
+}
+#django restfulapi framework 配置
+REST_FRAMEWORK = {
+    #权限相关配置
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated', # 要求用户登录
+    ],
+    #认证相关配置
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.BasicAuthentication', # 基本认证
+        'rest_framework.authentication.SessionAuthentication', # session认证
+        'rest_framework_jwt.authentication.JSONWebTokenAuthentication', # jwt认证
+    ],
+    #分页配置
+    'DEFAULT_PAGENATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE':10,
+    'DATETIME_FORMAT':'%Y-%m-%d %H:%M:%S',
+    'DEFAULT_RENDERER_CLASSES': [
+        'rest_framework.renders.JSONRenderer',
+        'rest_framework.renders.BrowsableAPIRenderer',
+    ],
+    'DEFAULT_PARSER_CLASSES':[ #解析http请求体
+        'rest_framework.parsers.JSONParser', #解析JSON数据
+        'rest_framework.parsers.FormParser', #解析Form
+        'rest_framework.parsers.MultiPartParser',
+    ]
 }

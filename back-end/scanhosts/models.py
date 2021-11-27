@@ -5,8 +5,7 @@ import time
 class Company(models.Model):
     """公司表"""
     name = models.CharField(max_length=30)
-    created_at = models.DateTimeField(
-        default=time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
+    created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
 
@@ -16,9 +15,8 @@ class Host(models.Model):
     os = models.CharField(max_length=30)
     domain_list = models.CharField(max_length=300, blank=True)
     ports_list = models.CharField(max_length=300, blank=True)
-    created_at = models.DateTimeField(
-        default=time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
     company = models.ForeignKey("Company", on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
 
@@ -27,6 +25,5 @@ class Task(models.Model):
     targets = models.CharField(max_length=300)
     company = models.ForeignKey("Company", on_delete=models.CASCADE)
     status = models.CharField(max_length=30, default="pending")
-    created_at = models.DateTimeField(
-        default=time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
+    created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
