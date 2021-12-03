@@ -1,0 +1,31 @@
+{
+    "name": "web_app",
+    "mode": "dev",
+    "port": 9091,
+    "start_time": "2021-01-01",
+    "machine_id": 1,
+    "log": {
+        "level": "debug",
+        "filename": "web_app.log",
+        "max_size": 200,
+        "max_backups": 7,
+        "max_age": 30,
+        "compress": false
+    },
+    "mysql": {
+        "host": "127.0.0.1",
+        "port": 3306,
+        "user": "root",
+        "passwd": "root",
+        "dbname": "white_hat_helper",
+        "max_open_conns": 20,
+        "max_idle_conns": 10
+    },
+    "redis": {
+        "host": "127.0.0.1",
+        "port": 6379,
+        "db": 0,
+        "passwd": "",
+        "pool_size": 100
+    }
+}
