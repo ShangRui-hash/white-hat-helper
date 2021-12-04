@@ -26,10 +26,25 @@ type ParamAddCompany struct {
 //Page 分页参数
 type Page struct {
 	Offset int `json:"offset" form:"offset"`
-	Count  int `json:"count" form:"count"`
+	Count  int `json:"count" form:"count" binding:"required"`
 }
 
 //ParamGetCompanyList 获取公司需要的参数
 type ParamGetCompanyList struct {
 	Page
+}
+
+type ParamDeleteCompany struct {
+	ID int `json:"id" binding:"required"`
+}
+
+type ParamUpdateCompany struct {
+	ID   int    `json:"id" binding:"required"`
+	Name string `json:"name" binding:"required"`
+}
+
+type ParamAddTask struct {
+	CompanyID int    `json:"company_id" binding:"required"`
+	Name      string `json:"name" binding:"required"`
+	ScanArea  string `json:"scan_area" binding:"required"`
 }

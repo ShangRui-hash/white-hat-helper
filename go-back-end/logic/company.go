@@ -14,7 +14,9 @@ func AddCompany(param *models.ParamAddCompany) (company *models.Company, err err
 		return nil, err
 	}
 	return &models.Company{
-		ID:   id,
+		MetaID: models.MetaID{
+			ID: id,
+		},
 		Name: param.Name,
 	}, nil
 }
@@ -30,4 +32,14 @@ func IsCompanyExist(name string) (exist bool, err error) {
 
 func GetCompanyList(param *models.ParamGetCompanyList) ([]*models.Company, error) {
 	return mysql.GetCompanyList(param)
+}
+
+//DeleteCompany 删除公司
+func DeleteCompany(param *models.ParamDeleteCompany) error {
+	return mysql.DeleteCompany(param.ID)
+}
+
+//UpdateCompany 更新公司
+func UpdateCompany(param *models.ParamUpdateCompany) error {
+	return mysql.UpdateCompany(param)
 }

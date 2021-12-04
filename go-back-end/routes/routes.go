@@ -31,12 +31,16 @@ func Setup(mode string) *gin.Engine {
 		v1.POST("/company", controllers.AddCompanyHandler)
 		//获取公司列表
 		v1.GET("/company", controllers.GetCompanyListHandler)
-		// //删除公司
-		// v1.DELETE("/company/:id", controllers.DeleteCompanyHandler)
-		// //修改公司
-		// v1.PUT("/company/:id", controllers.UpdateCompanyHandler)
-		// //添加任务
-		// v1.POST("/task", controllers.AddTaskHandler)
+		//删除公司
+		v1.DELETE("/company", controllers.DeleteCompanyHandler)
+		//修改公司
+		v1.PUT("/company", controllers.UpdateCompanyHandler)
+		//添加任务
+		v1.POST("/task", controllers.AddTaskHandler)
+		//获取任务列表
+		v1.GET("/task", controllers.GetTaskListHandler)
+		//删除任务
+		v1.DELETE("/task", controllers.DeleteTaskHandler)
 		// //修改任务
 		// v1.PUT("/task/:id", controllers.UpdateTaskHandler)
 		// //开始任务
