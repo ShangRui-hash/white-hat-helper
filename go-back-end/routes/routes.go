@@ -50,10 +50,10 @@ func Setup(mode string) *gin.Engine {
 		// //继续任务
 		// v1.PUT("/task/:id/continue", controllers.ContinueTaskHandler)
 		// //修改任务
-		// //获取指定公司的主机列表
-		// v1.GET("/host/:company_id", controllers.GetHostListHandler)
-		// //获取主机详情
-		// v1.GET("/host/:id", controllers.GetHostDetailHandler)
+		//获取指定公司的主机列表
+		v1.GET("/host/list", controllers.GetHostListHandler)
+		//获取主机详情
+		v1.GET("/host/detail", controllers.GetHostDetailHandler)
 
 	}
 

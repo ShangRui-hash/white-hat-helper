@@ -48,3 +48,12 @@ type ParamAddTask struct {
 	Name      string `json:"name" binding:"required"`
 	ScanArea  string `json:"scan_area" binding:"required"`
 }
+
+type ParamGetHostList struct {
+	CompanyID int64 `json:"company_id" form:"company_id" binding:"required"`
+	Page
+}
+
+type ParamGetHostDetail struct {
+	IP string `json:"ip" form:"ip" binding:"required"`
+}

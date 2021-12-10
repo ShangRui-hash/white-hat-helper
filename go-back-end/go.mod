@@ -3,6 +3,7 @@ module web_app
 go 1.15
 
 require (
+	github.com/Ullaakut/nmap v2.0.2+incompatible // indirect
 	github.com/bwmarrin/snowflake v0.3.0
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/fsnotify/fsnotify v1.4.7
