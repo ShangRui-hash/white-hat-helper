@@ -1,4 +1,0 @@
-Django==3.2.8
-django_redis==5.0.0
-pexpect==4.8.0
-python3_nmap==1.5.1
