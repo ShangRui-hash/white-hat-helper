@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"strings"
 	"web_app/models"
 
 	"go.uber.org/zap"
@@ -8,7 +9,7 @@ import (
 
 func AddTask(param *models.ParamAddTask) (id int64, err error) {
 	sql := `INSERT INTO task(name, scan_area,company_id) VALUES(?, ?, ?)`
-	ret, err := db.Exec(sql, param.Name, param.ScanArea, param.CompanyID)
+	ret, err := db.Exec(sql, param.Name, strings.Join(param.ScanArea, ","), param.CompanyID)
 	if err != nil {
 		zap.L().Error("add task db.Exec error", zap.Error(err))
 		return id, err
@@ -39,4 +40,10 @@ func DeleteTask(id int64) error {
 	sql := `DELETE FROM task WHERE id = ?`
 	_, err := db.Exec(sql, id)
 	return err
+}
+
+func GetTaskCount(companyID int64) (count int64, err error) {
+	sql := `SELECT count(id) from task where company_id = ?`
+	err = db.Get(&count, sql, companyID)
+	return count, err
 }

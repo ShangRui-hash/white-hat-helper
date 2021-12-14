@@ -12,12 +12,15 @@ require (
 
 require (
 	github.com/PuerkitoBio/goquery v1.8.0 // indirect
+	github.com/Ullaakut/nmap v2.0.2+incompatible // indirect
+	github.com/Ullaakut/nmap/v2 v2.2.0 // indirect
 	github.com/andybalholm/cascadia v1.3.1 // indirect
 	github.com/cavaliercoder/grab v2.0.0+incompatible // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.1 // indirect
 	github.com/evilsocket/brutemachine v0.0.0-20170703145059-0331ad6a82ce // indirect
+	github.com/fatih/structs v1.1.0 // indirect
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
-	github.com/hashicorp/go-cleanhttp v0.5.1 // indirect
+	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-retryablehttp v0.7.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/magiconair/properties v1.8.5 // indirect
@@ -25,7 +28,8 @@ require (
 	github.com/onsi/ginkgo v1.16.5 // indirect
 	github.com/onsi/gomega v1.17.0 // indirect
 	github.com/pelletier/go-toml v1.9.4 // indirect
-	github.com/projectdiscovery/wappalyzergo v0.0.17 // indirect
+	github.com/pkg/errors v0.9.1 // indirect
+	github.com/projectdiscovery/wappalyzergo v0.0.18 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/serkanalgur/phpfuncs v0.3.5 // indirect
 	github.com/spf13/afero v1.6.0 // indirect
@@ -33,7 +37,8 @@ require (
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/subosito/gotenv v1.2.0 // indirect
-	golang.org/x/net v0.0.0-20211123203042-d83791d6bcd9 // indirect
+	golang.org/x/net v0.0.0-20211203184738-4852103109b8 // indirect
+	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
 	golang.org/x/sys v0.0.0-20211124211545-fe61309f8881 // indirect
 	golang.org/x/text v0.3.7 // indirect
 	gopkg.in/ini.v1 v1.64.0 // indirect

@@ -22,6 +22,11 @@ import (
 )
 
 func main() {
+	//检查权限
+	if os.Geteuid() != 0 {
+		log.Fatal("请使用root用户运行")
+	}
+
 	//0.接收命令行参数
 	var configFilePath string
 	flag.StringVar(&configFilePath, "config", "./config.json", "指定configPath")

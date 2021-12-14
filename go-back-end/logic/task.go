@@ -1,6 +1,10 @@
 package logic
 
 import (
+	"fmt"
+	"os"
+	"os/exec"
+	"strings"
 	"web_app/dao/mysql"
 	"web_app/dao/redis"
 	"web_app/models"
@@ -57,6 +61,7 @@ func GetTaskList(param *models.Page) ([]*models.Task, error) {
 			return nil, err
 		}
 		task.Status = status
+		task.ScanAreaList = strings.Split(task.ScanArea, ",")
 	}
 	return tasks, nil
 }
@@ -82,6 +87,35 @@ func DeleteTask(id int64) error {
 	}
 	//2.删除redis
 	if err := redis.DeleteTaskStatus(id); err != nil {
+		return err
+	}
+	return nil
+}
+
+func StartTask(taskID int64) error {
+	//1.查询任务的详细信息
+	task, err := mysql.GetTaskByID(taskID)
+	if err != nil {
+		return err
+	}
+	//2.启动任务
+	logFile, err := os.OpenFile("task.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0777)
+	if err != nil {
+		return err
+	}
+	cmd := exec.Command(
+		"white-hat-helper",
+		"-r", "/Applications/MAMP/htdocs/安全开发/PythonProject/white-hat-helper/white-hat-helper/config/redis.json",
+		"--cid", fmt.Sprintf("%d", task.CompanyID),
+		"--dict", "/Applications/MAMP/htdocs/安全开发/PythonProject/white-hat-helper/white-hat-helper/dirsearch.txt",
+		"-d", task.ScanArea)
+	cmd.Stdout = logFile
+	cmd.Stderr = logFile
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	//3.更新redis
+	if err := redis.BeginTask(taskID); err != nil {
 		return err
 	}
 	return nil

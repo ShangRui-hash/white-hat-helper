@@ -1,6 +1,8 @@
 package controllers
 
 import (
+	"log"
+	"os"
 	"white-hat-helper/dao/redis"
 	"white-hat-helper/logger"
 	"white-hat-helper/logic"
@@ -11,6 +13,11 @@ import (
 )
 
 func Run(c *cli.Context) error {
+	//检查权限
+	if os.Geteuid() != 0 {
+		log.Fatal("请使用root用户运行")
+	}
+
 	//0.初始化日志配置
 	logger.Init()
 	//1.初始化Redis连接

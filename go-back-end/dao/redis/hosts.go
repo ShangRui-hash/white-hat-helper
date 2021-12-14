@@ -9,15 +9,11 @@ import (
 	"go.uber.org/zap"
 )
 
-var (
-	IPOSMapKey         = "ip_os_map"
-	IPPortSetKeyPrefix = "ip_port_set::"
-)
-
 //GetHostsByCompanyID 根据公司ID获取主机列表
 func GetHostsByCompanyID(param *models.ParamGetHostList) (hostList []*models.HostListItem, err error) {
 	key := fmt.Sprintf("ipzset::%d", param.CompanyID)
 	zap.L().Debug("key", zap.String("key", key))
+	//1.按照分数获取主机列表
 	ipList, err := rdb.ZRevRange(key, int64(param.Offset), int64(param.Offset)+int64(param.Count)).Result()
 	if err != nil {
 		zap.L().Error("get hosts by company id failed", zap.Error(err))
@@ -54,34 +50,54 @@ func GetOSByIP(IP string) (string, error) {
 //GetPortDetailByIP 获取端口详情
 func GetPortDetailByIP(IP string) ([]models.PortDetail, error) {
 	key := fmt.Sprintf("%s%s", IPPortSetKeyPrefix, IP)
+	//1.获取该ip所有的端口号
 	portList, err := rdb.SMembers(key).Result()
 	if err != nil {
 		return nil, err
 	}
+	//2.从hash表中查询端口的具体信息
 	portDetailList := make([]models.PortDetail, 0, len(portList))
 	for i := range portList {
-		var port models.PortDetail
-		if err := json.Unmarshal([]byte(portList[i]), &port); err != nil {
-			return nil, err
+		port, err := getPortDetail(IP, portList[i])
+		if err != nil {
+			continue
 		}
 		portDetailList = append(portDetailList, port)
 	}
 	return portDetailList, nil
 }
 
+func getPortDetail(IP, portID string) (port models.PortDetail, err error) {
+	//查询端口的详细信息
+	portDetail, err := rdb.HGet(IPPortDetailKeyPrefix+IP, portID).Result()
+	if err != nil {
+		zap.L().Error("rdb.HGet failed", zap.Error(err))
+		return port, err
+	}
+	//反序列化端口的详细信息
+	if err := json.Unmarshal([]byte(portDetail), &port); err != nil {
+		return port, err
+	}
+	return port, nil
+}
+
+//GetPort 获取端口的概要信息
 func GetPort(hostList []*models.HostListItem) error {
 	for _, host := range hostList {
 		key := fmt.Sprintf("%s%s", IPPortSetKeyPrefix, host.IP)
+		//1.获取端口号列表
 		portList, err := rdb.SMembers(key).Result()
 		if err != nil {
 			return err
 		}
+		zap.L().Debug("portList", zap.Any("portList", portList))
+		//2.获取端口的概要信息
 		for _, portStr := range portList {
-			var port models.Port
-			if err := json.Unmarshal([]byte(portStr), &port); err != nil {
-				return err
+			port, err := getPortDetail(host.IP, portStr)
+			if err != nil {
+				continue
 			}
-			host.PortList = append(host.PortList, port)
+			host.PortList = append(host.PortList, port.Port)
 		}
 	}
 	return nil

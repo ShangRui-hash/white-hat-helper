@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"strconv"
 	"web_app/logic"
 	"web_app/models"
 
@@ -56,6 +57,24 @@ func DeleteTaskHandler(c *gin.Context) {
 	err := logic.DeleteTask(param.ID)
 	if err != nil {
 		zap.L().Error("delete task handler error", zap.Error(err))
+		RespErr(c, CodeServerBusy)
+		return
+	}
+	RespSuc(c, nil)
+}
+
+func StartTaskHandler(c *gin.Context) {
+	//1.接收传参
+	taskID := c.Param("id")
+	id, err := strconv.ParseInt(taskID, 10, 64)
+	if err != nil {
+		zap.L().Error("start task handler param error", zap.Error(err))
+		RespErr(c, CodeInvalidParam)
+		return
+	}
+	//2.业务逻辑
+	if err := logic.StartTask(id); err != nil {
+		zap.L().Error("start task handler error", zap.Error(err))
 		RespErr(c, CodeServerBusy)
 		return
 	}

@@ -30,11 +30,11 @@ type WebItem struct {
 
 type WebDetail struct {
 	WebItem
-	RespHeader  map[string]string `json:"resp_header"`
-	RespBody    string            `json:"resp_body"`
-	WAFName     string            `json:"waf_name"`
-	FingerPrint []string          `json:"fingerprint"`
-	Dirs        []Dir             `json:"dirs"`
+	RespHeader  map[string]interface{} `json:"resp_header"`
+	RespBody    string                 `json:"resp_body"`
+	WAFName     string                 `json:"waf_name"`
+	FingerPrint []string               `json:"fingerprint"`
+	Dirs        []Dir                  `json:"dirs"`
 }
 
 type Dir struct {

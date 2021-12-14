@@ -43,8 +43,8 @@ func Setup(mode string) *gin.Engine {
 		v1.DELETE("/task", controllers.DeleteTaskHandler)
 		// //修改任务
 		// v1.PUT("/task/:id", controllers.UpdateTaskHandler)
-		// //开始任务
-		// v1.PUT("/task/:id/start", controllers.StartTaskHandler)
+		//开始任务
+		v1.PUT("/task/:id/start", controllers.StartTaskHandler)
 		// //暂停任务
 		// v1.PUT("/task/:id/pause", controllers.PauseTaskHandler)
 		// //继续任务

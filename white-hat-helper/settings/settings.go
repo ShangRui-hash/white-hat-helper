@@ -14,6 +14,7 @@ type Config struct {
 	RedisConfigFile string
 	Domains         string
 	DomainFile      string
+	DictPath        string
 	Debug           bool
 	CompanyID       int
 }

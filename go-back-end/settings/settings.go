@@ -11,14 +11,15 @@ import (
 var Conf = new(AppConfig)
 
 type AppConfig struct {
-	Name         string `mapstructure:"name"`
-	Mode         string `mapstructure:"mode"`
-	Port         int    `mapstructure:"port"`
-	MachineID    int64  `mapstructure:"machine_id"`
-	StartTime    string `mapstructure:"start_time"`
-	*LogConfig   `mapstructure:"log"`
-	*MySQLConfig `mapstructure:"mysql"`
-	*RedisConfig `mapstructure:"redis"`
+	Name               string `mapstructure:"name"`
+	Mode               string `mapstructure:"mode"`
+	Port               int    `mapstructure:"port"`
+	MachineID          int64  `mapstructure:"machine_id"`
+	StartTime          string `mapstructure:"start_time"`
+	ReCAPTCHAPublicKey string `mapstructure:"reCAPTCHA_public_key"`
+	*LogConfig         `mapstructure:"log"`
+	*MySQLConfig       `mapstructure:"mysql"`
+	*RedisConfig       `mapstructure:"redis"`
 }
 
 type LogConfig struct {

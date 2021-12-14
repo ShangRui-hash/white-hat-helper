@@ -1,10 +1,10 @@
 package controllers
 
 import (
-	"os"
 	"web_app/logic"
 	"web_app/models"
 	"web_app/pkg/validate"
+	"web_app/settings"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -20,12 +20,13 @@ func UserLoginHandler(c *gin.Context) {
 		return
 	}
 	//2.效验google验证码
-	publicKey := os.Getenv("reCAPTCHA_public_key")
-	if len(publicKey) == 0 {
-		zap.L().Error("环境变量中未设置谷歌验证码的公钥")
-		RespErr(c, CodeServerBusy)
-		return
-	}
+	// publicKey := os.Getenv("reCAPTCHA_public_key")
+	// if len(publicKey) == 0 {
+	// 	zap.L().Error("环境变量中未设置谷歌验证码的公钥")
+	// 	RespErr(c, CodeServerBusy)
+	// 	return
+	// }
+	publicKey := settings.Conf.ReCAPTCHAPublicKey
 	if !validate.VerifyReCAPTCHAToken(params.ReCAPTCHA, publicKey) {
 		zap.L().Error("validate.VerifyReCAPTCHAToken(params.ReCAPTCHA, publicKey) failed")
 		RespErr(c, CodeServerBusy)

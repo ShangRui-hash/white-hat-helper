@@ -27,6 +27,7 @@ func GetHostListHandler(c *gin.Context) {
 	RespSuc(c, hostList)
 }
 
+//GetHostDetailHandler 获取主机详情
 func GetHostDetailHandler(c *gin.Context) {
 	//1.接收传参
 	var param models.ParamGetHostDetail

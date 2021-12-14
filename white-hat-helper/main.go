@@ -54,6 +54,13 @@ func main() {
 				Required:    true,
 				Destination: &settings.CurrentConfig.CompanyID,
 			},
+			&cli.StringFlag{
+				Name:        "dictPath",
+				Usage:       "dict path",
+				Aliases:     []string{"dict"},
+				Required:    true,
+				Destination: &settings.CurrentConfig.DictPath,
+			},
 		},
 		Action: controllers.Run,
 	}
