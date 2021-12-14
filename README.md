@@ -2,7 +2,7 @@
 
 # 基于Nmap网络资产扫描
 
-## TODO 
+### TODO 
 
 1. 完成任务管理模块：
 - 修改任务
@@ -22,8 +22,26 @@
 4. 添加文档编写功能：
 - 可以为每个资产编写渗透测试文档，并且文档可以多人协作编辑。
 
-
-
+### 目前已完成的部分说明: 
+#### go-back-end 
+基于go编写的web后端，运行方法：
+```
+sudo go run main.go
+```
+后端数据库为mysql 和 redis ,主要数据存储在redis中
+#### scanner 扫描器
+```
+### 编译
+go install
+### 运行
+sudo white-hat-helper -r redis.json --cid 6 --dict dirsearch.txt -d lenovo.com,lenovo.com.cn,lenovomm.com
+```
+目前的设计方案是：当用户点击开始任务后，让 go-back-end 去调用 scanner，scanner 将扫描结果存储到redis中，go-back-end从redis中获取数据，返回给前端展示。
+#### vue-fore-end 
+基于vue-element-admin 实现的前端   
+```
+npm run dev
+```
 
 
 
