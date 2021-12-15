@@ -2,7 +2,7 @@ package controllers
 
 import (
 	"web_app/logic"
-	"web_app/models"
+	"web_app/param"
 	"web_app/pkg/validate"
 	"web_app/settings"
 
@@ -13,8 +13,8 @@ import (
 //UserLoginHandler 用户登录
 func UserLoginHandler(c *gin.Context) {
 	//1.接收参数
-	var params models.ParamLogin
-	if msg, err := ValidateJSONParam(c, &params); err != nil {
+	var params param.ParamLogin
+	if msg, err := validate.JSONParam(c, &params); err != nil {
 		zap.L().Error("user register with invalid param", zap.Error(err))
 		RespErrMsg(c, CodeInvalidParam, msg)
 		return
@@ -45,8 +45,8 @@ func UserLoginHandler(c *gin.Context) {
 //LogoutHandler 退出登录
 func LogoutHandler(c *gin.Context) {
 	//1.接收传参,业务逻辑
-	var params models.ParamLogout
-	if msg, err := ValidateJSONParam(c, &params); err != nil {
+	var params param.ParamLogout
+	if msg, err := validate.JSONParam(c, &params); err != nil {
 		zap.L().Error("logout with invalid param", zap.Error(err))
 		RespErrMsg(c, CodeInvalidParam, msg)
 		return

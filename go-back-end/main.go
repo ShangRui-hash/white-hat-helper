@@ -10,11 +10,11 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
-	"web_app/controllers"
 	"web_app/dao/mysql"
 	"web_app/dao/redis"
 	"web_app/logger"
 	"web_app/pkg/snowflake"
+	"web_app/pkg/translator"
 	"web_app/routes"
 	"web_app/settings"
 
@@ -65,7 +65,7 @@ func main() {
 		return
 	}
 	//6.初始化gin框架 binding validate 使用的翻译器
-	if err := controllers.InitTrans("zh"); err != nil {
+	if err := translator.InitTrans("zh"); err != nil {
 		fmt.Printf("init translator failed,err:%v\n", err)
 		return
 	}

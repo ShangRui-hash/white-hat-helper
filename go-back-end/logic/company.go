@@ -4,12 +4,13 @@ import (
 	"web_app/dao/mysql"
 	"web_app/dao/redis"
 	"web_app/models"
+	"web_app/param"
 
 	"go.uber.org/zap"
 )
 
-func AddCompany(param *models.ParamAddCompany) (company *models.Company, err error) {
-	id, err := mysql.AddCompany(param)
+func AddCompany(param *param.ParamAddCompany) (company *models.Company, err error) {
+	id, err := mysql.AddCompany(param.Name)
 	if err != nil {
 		zap.L().Error("mysql.AddCompany failed", zap.Error(err))
 		return nil, err
@@ -22,18 +23,9 @@ func AddCompany(param *models.ParamAddCompany) (company *models.Company, err err
 	}, nil
 }
 
-func IsCompanyExist(name string) (exist bool, err error) {
-	company, err := mysql.GetCompanyByName(name)
-	if err != nil {
-		zap.L().Error("get company by name failed", zap.Error(err))
-		return true, err
-	}
-	return company != nil, nil
-}
-
-func GetCompanyList(param *models.ParamGetCompanyList) ([]*models.Company, error) {
+func GetCompanyList(param *param.ParamGetCompanyList) ([]*models.Company, error) {
 	//1.查询公司基本信息
-	companyList, err := mysql.GetCompanyList(param)
+	companyList, err := mysql.GetCompanyList(param.Page.Offset, param.Page.Count)
 	if err != nil {
 		return nil, err
 	}
@@ -59,11 +51,11 @@ func GetCompanyList(param *models.ParamGetCompanyList) ([]*models.Company, error
 }
 
 //DeleteCompany 删除公司
-func DeleteCompany(param *models.ParamDeleteCompany) error {
+func DeleteCompany(param *param.ParamDeleteCompany) error {
 	return mysql.DeleteCompany(param.ID)
 }
 
 //UpdateCompany 更新公司
-func UpdateCompany(param *models.ParamUpdateCompany) error {
-	return mysql.UpdateCompany(param)
+func UpdateCompany(param *param.ParamUpdateCompany) error {
+	return mysql.UpdateCompany(int64(param.ID), param.Name)
 }

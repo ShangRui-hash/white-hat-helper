@@ -2,7 +2,8 @@ package controllers
 
 import (
 	"web_app/logic"
-	"web_app/models"
+	"web_app/param"
+	"web_app/pkg/validate"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -11,8 +12,8 @@ import (
 //GetHostListHandler 获取主机列表
 func GetHostListHandler(c *gin.Context) {
 	//1.接收传参
-	var param models.ParamGetHostList
-	if msg, err := ValidateQueryParam(c, &param); err != nil {
+	var param param.ParamGetHostList
+	if msg, err := validate.QueryParam(c, &param); err != nil {
 		zap.L().Error("validate param failed", zap.Error(err))
 		RespErrMsg(c, CodeInvalidParam, msg)
 		return
@@ -30,8 +31,8 @@ func GetHostListHandler(c *gin.Context) {
 //GetHostDetailHandler 获取主机详情
 func GetHostDetailHandler(c *gin.Context) {
 	//1.接收传参
-	var param models.ParamGetHostDetail
-	if msg, err := ValidateQueryParam(c, &param); err != nil {
+	var param param.ParamGetHostDetail
+	if msg, err := validate.QueryParam(c, &param); err != nil {
 		zap.L().Error("validate param failed", zap.Error(err))
 		RespErrMsg(c, CodeInvalidParam, msg)
 		return

@@ -7,9 +7,9 @@ import (
 	"go.uber.org/zap"
 )
 
-func AddTask(param *models.ParamAddTask) (id int64, err error) {
+func AddTask(name string, scanArea []string, companyID int64) (id int64, err error) {
 	sql := `INSERT INTO task(name, scan_area,company_id) VALUES(?, ?, ?)`
-	ret, err := db.Exec(sql, param.Name, strings.Join(param.ScanArea, ","), param.CompanyID)
+	ret, err := db.Exec(sql, name, strings.Join(scanArea, ","), companyID)
 	if err != nil {
 		zap.L().Error("add task db.Exec error", zap.Error(err))
 		return id, err

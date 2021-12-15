@@ -3,14 +3,15 @@ package logic
 import (
 	"web_app/dao/redis"
 	"web_app/models"
+	"web_app/param"
 
 	"go.uber.org/zap"
 )
 
 //GetHostList 获取主机列表
-func GetHostList(params *models.ParamGetHostList) ([]*models.HostListItem, error) {
+func GetHostList(params *param.ParamGetHostList) ([]*models.HostListItem, error) {
 	//1.查询主机列表
-	hostList, err := redis.GetHostsByCompanyID(params)
+	hostList, err := redis.GetHostsByCompanyID(params.CompanyID, int64(params.Offset), int64(params.Count))
 	if err != nil {
 		zap.L().Error("GetHostList redis.GetHostsByCompanyID error", zap.Error(err))
 		return nil, err

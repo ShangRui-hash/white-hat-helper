@@ -3,7 +3,8 @@ package controllers
 import (
 	"strconv"
 	"web_app/logic"
-	"web_app/models"
+	"web_app/param"
+	"web_app/pkg/validate"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -11,8 +12,8 @@ import (
 
 func AddTaskHandler(c *gin.Context) {
 	//1.接收传参，后端校验
-	var param models.ParamAddTask
-	if msg, err := ValidateJSONParam(c, &param); err != nil {
+	var param param.ParamAddTask
+	if msg, err := validate.JSONParam(c, &param); err != nil {
 		zap.L().Error("add task handler param error", zap.Error(err))
 		RespErrMsg(c, CodeInvalidParam, msg)
 		return
@@ -29,8 +30,8 @@ func AddTaskHandler(c *gin.Context) {
 
 func GetTaskListHandler(c *gin.Context) {
 	//1.接收传参，后端校验
-	var param models.Page
-	if msg, err := ValidateQueryParam(c, &param); err != nil {
+	var param param.Page
+	if msg, err := validate.QueryParam(c, &param); err != nil {
 		zap.L().Error("get task list handler param error", zap.Error(err))
 		RespErrMsg(c, CodeInvalidParam, msg)
 		return
@@ -47,8 +48,8 @@ func GetTaskListHandler(c *gin.Context) {
 
 func DeleteTaskHandler(c *gin.Context) {
 	//1.接收传参，后端校验
-	var param models.MetaID
-	if msg, err := ValidateJSONParam(c, &param); err != nil {
+	var param param.MetaID
+	if msg, err := validate.JSONParam(c, &param); err != nil {
 		zap.L().Error("delete task handler param error", zap.Error(err))
 		RespErrMsg(c, CodeInvalidParam, msg)
 		return

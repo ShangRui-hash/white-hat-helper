@@ -1,4 +1,4 @@
-package models
+package param
 
 //ParamsRegister 注册需要参数
 type ParamsRegister struct {

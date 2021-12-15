@@ -8,13 +8,14 @@ import (
 	"web_app/dao/mysql"
 	"web_app/dao/redis"
 	"web_app/models"
+	"web_app/param"
 
 	"go.uber.org/zap"
 )
 
-func AddTask(param *models.ParamAddTask) (*models.Task, error) {
+func AddTask(param *param.ParamAddTask) (*models.Task, error) {
 	//1.基本信息进入mysql
-	id, err := mysql.AddTask(param)
+	id, err := mysql.AddTask(param.Name, param.ScanArea, int64(param.CompanyID))
 	if err != nil {
 		zap.L().Error("mysql.AddTask failed", zap.Error(err))
 		return nil, err
@@ -48,7 +49,7 @@ func GetTaskByID(id int64) (*models.Task, error) {
 	return task, nil
 }
 
-func GetTaskList(param *models.Page) ([]*models.Task, error) {
+func GetTaskList(param *param.Page) ([]*models.Task, error) {
 	//1.获取基本信息
 	tasks, err := mysql.GetTaskList(param.Offset, param.Count)
 	if err != nil {

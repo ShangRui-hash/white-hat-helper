@@ -1,4 +1,4 @@
-package models
+package param
 
 type ParamGetHostList struct {
 	baseParam

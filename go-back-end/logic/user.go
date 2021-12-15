@@ -5,13 +5,14 @@ import (
 	"web_app/dao/mysql"
 	"web_app/dao/redis"
 	"web_app/models"
+	"web_app/param"
 	"web_app/pkg/jwt"
 
 	"go.uber.org/zap"
 )
 
 //UserLogin 用户登录
-func UserLogin(params models.ParamLogin) (token string, err error) {
+func UserLogin(params param.ParamLogin) (token string, err error) {
 	//1.效验用户名的错误次数
 	counter := redis.NewCounter(params.Username)
 	val, err := counter.Get()

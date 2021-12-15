@@ -10,11 +10,11 @@ import (
 )
 
 //GetHostsByCompanyID 根据公司ID获取主机列表
-func GetHostsByCompanyID(param *models.ParamGetHostList) (hostList []*models.HostListItem, err error) {
-	key := fmt.Sprintf("ipzset::%d", param.CompanyID)
+func GetHostsByCompanyID(companyID, offset, count int64) (hostList []*models.HostListItem, err error) {
+	key := fmt.Sprintf("ipzset::%d", companyID)
 	zap.L().Debug("key", zap.String("key", key))
 	//1.按照分数获取主机列表
-	ipList, err := rdb.ZRevRange(key, int64(param.Offset), int64(param.Offset)+int64(param.Count)).Result()
+	ipList, err := rdb.ZRevRange(key, offset, offset+count).Result()
 	if err != nil {
 		zap.L().Error("get hosts by company id failed", zap.Error(err))
 		return nil, err

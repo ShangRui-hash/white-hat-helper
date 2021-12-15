@@ -1,4 +1,4 @@
-package controllers
+package translator
 
 import (
 	"fmt"
@@ -16,6 +16,11 @@ import (
 
 // 定义一个全局翻译器T
 var trans ut.Translator
+
+//GetTranslator 获取翻译器
+func GetTranslator() ut.Translator {
+	return trans
+}
 
 // InitTrans 初始化翻译器
 func InitTrans(locale string) (err error) {
@@ -59,8 +64,8 @@ func InitTrans(locale string) (err error) {
 	return
 }
 
-//removeTopStruct 去除效验失败的返回信息中的结构体名称（多余）
-func removeTopStruct(fields map[string]string) map[string]string {
+//RemoveTopStruct 去除效验失败的返回信息中的结构体名称（多余）
+func RemoveTopStruct(fields map[string]string) map[string]string {
 	res := map[string]string{}
 	for field, err := range fields {
 		res[field[strings.Index(field, ".")+1:]] = err

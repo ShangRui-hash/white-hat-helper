@@ -3,7 +3,8 @@ package controllers
 import (
 	"strings"
 	"web_app/logic"
-	"web_app/models"
+	"web_app/param"
+	"web_app/pkg/validate"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -12,21 +13,10 @@ import (
 //AddCompanyHandler 添加公司
 func AddCompanyHandler(c *gin.Context) {
 	//1.接收传参
-	var param models.ParamAddCompany
-	if msg, err := ValidateJSONParam(c, &param); err != nil {
+	var param param.ParamAddCompany
+	if msg, err := validate.JSONParam(c, &param); err != nil {
 		zap.L().Error("add company handler param error", zap.Error(err))
 		RespErrMsg(c, CodeInvalidParam, msg)
-		return
-	}
-	//2.查重
-	exist, err := logic.IsCompanyExist(param.Name)
-	if err != nil {
-		zap.L().Error("add company handler check company exist error", zap.Error(err))
-		RespErr(c, CodeServerBusy)
-		return
-	}
-	if exist {
-		RespErrMsg(c, CodeAlreadyExist, "公司已存在")
 		return
 	}
 	//2.业务逻辑层
@@ -42,8 +32,8 @@ func AddCompanyHandler(c *gin.Context) {
 //GetCompanyHandler 获取公司列表
 func GetCompanyListHandler(c *gin.Context) {
 	//1.接收传参
-	var param models.ParamGetCompanyList
-	if msg, err := ValidateQueryParam(c, &param); err != nil {
+	var param param.ParamGetCompanyList
+	if msg, err := validate.QueryParam(c, &param); err != nil {
 		zap.L().Error("get company list handler param error", zap.Error(err))
 		RespErrMsg(c, CodeInvalidParam, msg)
 		return
@@ -61,8 +51,8 @@ func GetCompanyListHandler(c *gin.Context) {
 //DeleteCompanyHandler 删除公司
 func DeleteCompanyHandler(c *gin.Context) {
 	//1.接收参数
-	var param models.ParamDeleteCompany
-	if msg, err := ValidateJSONParam(c, &param); err != nil {
+	var param param.ParamDeleteCompany
+	if msg, err := validate.JSONParam(c, &param); err != nil {
 		zap.L().Error("delete company handler param error", zap.Error(err))
 		RespErrMsg(c, CodeInvalidParam, msg)
 		return
@@ -79,8 +69,8 @@ func DeleteCompanyHandler(c *gin.Context) {
 
 func UpdateCompanyHandler(c *gin.Context) {
 	//1.接收参数
-	var param models.ParamUpdateCompany
-	if msg, err := ValidateJSONParam(c, &param); err != nil {
+	var param param.ParamUpdateCompany
+	if msg, err := validate.JSONParam(c, &param); err != nil {
 		zap.L().Error("update company handler param error", zap.Error(err))
 		RespErrMsg(c, CodeInvalidParam, msg)
 		return
