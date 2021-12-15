@@ -46,10 +46,9 @@ func Run() error {
 	hostIPCh := redis.SaveIPDomain(subdomain.ParsedResult())
 	logrus.Debug("redis保存完毕")
 	//2.扫描端口
-
 	nmap, err := hackflow.GetNmap().Run(&hackflow.NmapRunConfig{
 		TargetCh:  hostIPCh,
-		Timeout:   1 * time.Second,
+		Timeout:   2 * time.Minute,
 		BatchSize: 30,
 	})
 	if err != nil {
@@ -114,7 +113,7 @@ func Run() error {
 	}
 	//6.存储目录扫描结果
 	redis.SaveFoundURL(foundURLCh)
-	select {}
+	logrus.Info("进程运行结束")
 	// //2.验证被动发现的域名
 	// positiveSubdomainCh, err := hackflow.GetKSubdomain().Run(&hackflow.KSubdomainRunConfig{
 	// 	Verify:   true,

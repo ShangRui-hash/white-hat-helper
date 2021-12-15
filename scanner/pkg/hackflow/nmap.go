@@ -106,6 +106,7 @@ func (n *nmapV2) run(target string, timeout time.Duration) error {
 		nmap.WithServiceInfo(),
 		nmap.WithOSDetection(),
 		nmap.WithContext(ctx),
+		nmap.WithSkipHostDiscovery(), // -Pn
 	)
 	if err != nil {
 		logger.Error("nmap.NewScanner faield: ", err)
