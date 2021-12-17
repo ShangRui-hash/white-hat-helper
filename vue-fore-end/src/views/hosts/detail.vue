@@ -14,6 +14,13 @@
           <el-descriptions-item label="所属公司">{{
             target.company
           }}</el-descriptions-item>
+          <el-descriptions-item label="域名列表">
+            <el-tag
+              v-for="domain in target.domain_list"
+              :key="domain" class="tag"
+              >{{ domain }}</el-tag
+            >
+          </el-descriptions-item>
         </el-descriptions>
       </el-card>
     </el-row>

@@ -2,13 +2,6 @@ package models
 
 import "github.com/Ullaakut/nmap"
 
-type HostListItem struct {
-	IP       string    `json:"ip"`
-	OS       string    `json:"os"`
-	PortList []Port    `json:"ports"`
-	WebList  []WebItem `json:"webs"`
-}
-
 type Port struct {
 	Port    int    `json:"port"`
 	Service string `json:"service"`
@@ -43,11 +36,19 @@ type Dir struct {
 	Title       string `json:"title"`
 	ContentSize string `json:"content_size"`
 }
+type HostListItem struct {
+	IP         string    `json:"ip"`
+	OS         string    `json:"os"`
+	DomainList []string  `json:"domain_list"`
+	PortList   []Port    `json:"ports"`
+	WebList    []WebItem `json:"webs"`
+}
 
 type HostDetail struct {
-	IP       string       `json:"ip"`
-	OS       string       `json:"os"`
-	Company  string       `json:"company"`
-	PortList []PortDetail `json:"ports"`
-	WebList  []WebDetail  `json:"webs"`
+	IP         string       `json:"ip"`
+	OS         string       `json:"os"`
+	Company    string       `json:"company"`
+	DomainList []string     `json:"domain_list"`
+	PortList   []PortDetail `json:"ports"`
+	WebList    []WebDetail  `json:"webs"`
 }

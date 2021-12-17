@@ -1,7 +1,7 @@
 <template>
   <div class="app-container">
     <el-skeleton v-show="is_show_skeleton" :rows="18" animated />
-    <el-card  v-for="host in hosts" :key="host.id" class="box-card">
+    <el-card v-for="host in hosts" :key="host.id" class="box-card">
       <div class="w-100percent">
         <!-- 操作系统 -->
         <el-tag v-if="host.os.length > 0" type="info" class="tag">{{
@@ -14,6 +14,18 @@
           @click="handleOpenDetail(host.ip)"
           >{{ host.ip }}</el-link
         >
+        <!-- 域名 -->
+        <div>
+          <el-tag
+            class="tag"
+            type="primary"
+            v-for="domain in host.domain_list"
+            :key="domain"
+            >{{ domain }}</el-tag
+          >
+        </div>
+
+        
         <!-- 端口 -->
         <div
           v-if="host.ports && host.ports.length > 0"
@@ -84,7 +96,7 @@ export default {
   },
   created() {
     console.log("HostsList created");
-    this.is_show_skeleton=true;
+    this.is_show_skeleton = true;
     this.loading = true;
     this.getHosts();
   },
