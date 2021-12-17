@@ -65,6 +65,38 @@ func GetTaskPid(taskID int64) (pid int, err error) {
 	return strconv.Atoi(temp)
 }
 
+//GetRunningTaskList 获取正在运行的任务列表
+func GetRunningTaskList() (taskIDList []int64, err error) {
+	taskIDList = make([]int64, 0)
+	temp, err := rdb.SMembers(RUNNING_TASK).Result()
+	if err != nil {
+		return nil, err
+	}
+	for _, v := range temp {
+		taskID, err := strconv.ParseInt(v, 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		taskIDList = append(taskIDList, taskID)
+	}
+	return taskIDList, nil
+}
+
+func StopAllRunningTask() (err error) {
+	taskIDList, err := GetRunningTaskList()
+	if err != nil {
+		return err
+	}
+	for _, taskID := range taskIDList {
+		err = StopTask(taskID)
+		if err != nil {
+			zap.L().Error("StopAllRunningTask", zap.Error(err))
+			return err
+		}
+	}
+	return nil
+}
+
 //SetTaskStatus 设置任务的状态
 func SetTaskStatus(taskID int64, statusKey string) (err error) {
 	//1.从原集合中移除

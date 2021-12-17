@@ -100,6 +100,9 @@ func main() {
 	if err := srv.Shutdown(ctx); err != nil {
 		zap.L().Fatal("Server Shutdown: ", zap.Error(err))
 	}
-
+	//修改所有任务状态为停止
+	if err := redis.StopAllRunningTask(); err != nil {
+		zap.L().Fatal("Server Shutdown: ", zap.Error(err))
+	}
 	zap.L().Info("Server exiting")
 }
