@@ -188,6 +188,7 @@ func (n *nmapV2) GetIPAndOSCh() IPAndOSCh {
 	go func() {
 		for result := range n.osResultCh {
 			for _, host := range result.Hosts {
+				logger.Debugf("os:%+v\n", host.OS)
 				os := UNKNOWN_OS
 				if len(host.OS.Matches) > 0 {
 					os = host.OS.Matches[0].Name
@@ -222,6 +223,7 @@ func (hostCh IPAndPortSeviceCh) GetWebServiceCh() (urlCh chan interface{}) {
 					protocol = "https"
 				}
 				if protocol != "" {
+					//IP形式的url
 					urlCh <- fmt.Sprintf("%s://%s:%d", protocol, host.IP, port.Port)
 					logrus.Debug("web service:", fmt.Sprintf("%s://%s:%d", protocol, host.IP, port.Port))
 				}

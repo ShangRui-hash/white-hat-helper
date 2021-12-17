@@ -15,7 +15,7 @@ func GetWebServiceByIP(ip string) ([]models.WebDetail, error) {
 		return nil, err
 	}
 	//2.查询该ip对应域名的URL集合
-	domainList, err := rdb.SMembers(IPSetKeyPrefix + ip).Result()
+	domainList, err := GetDomainListByIP(ip)
 	if err != nil {
 		return nil, err
 	}
@@ -39,7 +39,7 @@ func GetWebServiceByIP(ip string) ([]models.WebDetail, error) {
 		if err != nil {
 			zap.L().Error("rdb.SMembers failed", zap.String("url", url), zap.Error(err))
 		}
-		webDetail.FingerPrint = fingerprintList
+		webDetail.WebItem.FingerPrint = fingerprintList
 
 		//2.获取url的响应报文信息
 		detail, err := rdb.HGetAll(URLDetailHashKeyPrefix + url).Result()
@@ -62,6 +62,9 @@ func GetWebServiceByIP(ip string) ([]models.WebDetail, error) {
 			if statusCode, err := strconv.Atoi(code); err == nil {
 				webDetail.WebItem.StatusCode = statusCode
 			}
+		}
+		if location, ok := detail["location"]; ok {
+			webDetail.WebItem.Location = location
 		}
 		webs = append(webs, webDetail)
 	}

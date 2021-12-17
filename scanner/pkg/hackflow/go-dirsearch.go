@@ -2,6 +2,7 @@ package hackflow
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -59,8 +60,14 @@ func BruteForceURL(config *BruteForceURLConfig) (chan *BruteForceURLResult, erro
 	respCh, err := RetryHttpSend(&RetryHttpSendConfig{
 		RequestCh:    requestCh,
 		RoutineCount: config.RoutineCount,
-		Proxy:        config.Proxy,
-		Redirect:     false,
+		HttpClientConfig: HttpClientConfig{
+			Proxy:    config.Proxy,
+			Redirect: false,
+			Checktry: func(ctx context.Context, resp *http.Response, err error) (bool, error) {
+				return false, nil
+			},
+			RetryMax: 1,
+		},
 	})
 	if err != nil {
 		return nil, err

@@ -14,10 +14,23 @@ type HttpClientConfig struct {
 	Logger   interface{}
 	Proxy    string
 	Redirect bool
+	RetryMax int
+	Checktry retryablehttp.CheckRetry
+}
+
+//RetryHttpSendConfig 用来配置RetryHttpSend
+type RetryHttpSendConfig struct {
+	RequestCh    chan *http.Request
+	RoutineCount int
+	HttpClientConfig
 }
 
 func NewHttpClient(config *HttpClientConfig) (*http.Client, error) {
 	retryClient := retryablehttp.NewClient()
+	retryClient.RetryMax = config.RetryMax
+	if config.Checktry != nil {
+		retryClient.CheckRetry = config.Checktry
+	}
 	if config.Logger == nil {
 		retryClient.Logger = logrus.StandardLogger()
 	} else {
@@ -46,21 +59,10 @@ func NewHttpClient(config *HttpClientConfig) (*http.Client, error) {
 	return retryClient.StandardClient(), nil
 }
 
-//RetryHttpSendConfig 用来配置RetryHttpSend
-type RetryHttpSendConfig struct {
-	RequestCh    chan *http.Request
-	RoutineCount int
-	Redirect     bool
-	Proxy        string
-}
-
 //RetryHttpSend 用来发送http请求，如果发送失败，会自动重试
 func RetryHttpSend(config *RetryHttpSendConfig) (chan *http.Response, error) {
 	resultCh := make(chan *http.Response, 1024)
-	client, err := NewHttpClient(&HttpClientConfig{
-		Proxy:    config.Proxy,
-		Redirect: config.Redirect,
-	})
+	client, err := NewHttpClient(&config.HttpClientConfig)
 	if err != nil {
 		logrus.Error("NewHttpClient failed,err:", err)
 		return nil, err

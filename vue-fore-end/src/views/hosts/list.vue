@@ -51,6 +51,17 @@
           <el-table-column prop="status_code" label="status_code">
           </el-table-column>
           <el-table-column prop="title" label="title"> </el-table-column>
+          <el-table-column prop="location" label="location"></el-table-column>
+          <el-table-column prop="fingerprint" label="fingerprint">
+            <template slot-scope="scope" >
+              <el-tag
+                v-for="item in scope.row.fingerprint"
+                :key="item"
+                class="tag"
+                >{{ item }}</el-tag
+              >
+            </template>
+          </el-table-column>
         </el-table>
         <el-link class="m-l-10" v-show="host.webs && host.webs.length > 10"
           >.......</el-link

@@ -27,16 +27,17 @@ func GetHostList(params *param.ParamGetHostList) ([]*models.HostListItem, error)
 		zap.L().Error("GetHostList redis.GetPort error", zap.Error(err))
 		return nil, err
 	}
-	//3.查询主机列表的web服务
-	if err := redis.GetWeb(hostList); err != nil {
-		zap.L().Error("GetHostList redis.GetWeb error", zap.Error(err))
-		return nil, err
-	}
 	//4.查询主机对应的域名列表
 	if err := redis.GetDomainList(hostList); err != nil {
 		zap.L().Error("GetHostList redis.GetDomain error", zap.Error(err))
 		return nil, err
 	}
+	//3.查询主机列表的web服务
+	if err := redis.GetWeb(hostList); err != nil {
+		zap.L().Error("GetHostList redis.GetWeb error", zap.Error(err))
+		return nil, err
+	}
+
 	return hostList, nil
 }
 

@@ -2,6 +2,7 @@ package logic
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -59,11 +60,16 @@ func Run() error {
 	// 	logrus.Error("naabu run failed,err:", err)
 	// 	return err
 	// }
-	IPAndPortCh := hackflow.NewPortScanner(20 * time.Second).ConnectScan(
+	IPAndPortCh, err := hackflow.NewPortScanner(20 * time.Second).ConnectScan(
 		&hackflow.ScanConfig{
 			HostCh:       redis.SaveIPAndOS(IPAndOSCh).GetIPCh(),
 			RoutineCount: 1000,
+			PortRange:    hackflow.NmapTop1000,
 		})
+	if err != nil {
+		logrus.Error("port scan failed,err:", err)
+		return err
+	}
 	//3.扫描服务
 	PortServiceCh := hackflow.GetNmap().ServiceDection(&hackflow.ServiceDectionConfig{
 		TargetCh:  redis.SaveIPAndPort(IPAndPortCh),
@@ -71,7 +77,7 @@ func Run() error {
 		BatchSize: 30,
 	}).GetPortServiceCh()
 	urlCh := redis.SavePortService(PortServiceCh).GetWebServiceCh()
-	urlChList := hackflow.NewStream().AddSrc(urlCh).SetDstCount(2).GetDst()
+	urlChList := hackflow.NewStream().AddSrc(redis.AppendDomainURL(urlCh)).SetDstCount(2).GetDst()
 	//4.存储nmap的扫描结果并从端口中提取web服务端口，获取web服务端口的详细信息
 	requestCh := hackflow.GenRequest(hackflow.GenRequestConfig{
 		URLCh:       urlChList[0],
@@ -81,7 +87,14 @@ func Run() error {
 	responseCh, err := hackflow.RetryHttpSend(&hackflow.RetryHttpSendConfig{
 		RequestCh:    requestCh,
 		RoutineCount: 1000,
-		Proxy:        proxy,
+		HttpClientConfig: hackflow.HttpClientConfig{
+			Proxy:    proxy,
+			RetryMax: 1,
+			Redirect: false,
+			Checktry: func(ctx context.Context, resp *http.Response, err error) (bool, error) {
+				return false, nil
+			},
+		},
 	})
 	if err != nil {
 		logrus.Error("retryHttpSend failed,err:", err)
@@ -105,8 +118,6 @@ func Run() error {
 		logrus.Error("dectWhatWeb failed,err:", err)
 		return err
 	}
-	//存储指纹信息
-
 	//5.对web服务进行目录扫描
 	dict, err := os.Open(settings.CurrentConfig.DictPath)
 	if err != nil {

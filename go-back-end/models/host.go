@@ -16,18 +16,19 @@ type PortDetail struct {
 }
 
 type WebItem struct {
-	URL        string `json:"url"`
-	Title      string `json:"title"`
-	StatusCode int    `json:"status_code"`
+	URL         string   `json:"url"`
+	Title       string   `json:"title"`
+	Location    string   `json:"location"`
+	StatusCode  int      `json:"status_code"`
+	FingerPrint []string `json:"fingerprint"`
 }
 
 type WebDetail struct {
 	WebItem
-	RespHeader  map[string]interface{} `json:"resp_header"`
-	RespBody    string                 `json:"resp_body"`
-	WAFName     string                 `json:"waf_name"`
-	FingerPrint []string               `json:"fingerprint"`
-	Dirs        []Dir                  `json:"dirs"`
+	RespHeader map[string]interface{} `json:"resp_header"`
+	RespBody   string                 `json:"resp_body"`
+	WAFName    string                 `json:"waf_name"`
+	Dirs       []Dir                  `json:"dirs"`
 }
 
 type Dir struct {

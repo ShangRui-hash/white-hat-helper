@@ -49,6 +49,7 @@ func saveHttpResp(resp *hackflow.ParsedHttpResp) error {
 		"resp_title":  resp.RespTitle,
 		"resp_body":   resp.RespBody,
 		"resp_header": header,
+		"location":    resp.RespHeader.Get("Location"),
 	}
 	if _, err := rdb.HMSet(URLDetailHashKeyPrefix+resp.URL, data).Result(); err != nil {
 		logrus.Error("Error saving url: ", err)
