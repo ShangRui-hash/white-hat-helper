@@ -13,16 +13,43 @@
         label="扫描范围"
         width="400"
       >
-      <template slot-scope="scope">
-        <el-tag v-for="item in scope.row.scan_area" :key="item" class="tag"  >{{item}}</el-tag>
-      </template>
+        <template slot-scope="scope">
+          <el-tag v-for="item in scope.row.scan_area" :key="item" class="tag">{{
+            item
+          }}</el-tag>
+        </template>
       </el-table-column>
       <el-table-column
         header-align="center"
         align="center"
-        prop="status"
         label="扫描状态"
       >
+      <template slot-scope="scope">
+        <el-tag
+          v-if="scope.row.status == '运行中'"
+          type="success"
+          size="small"
+          style="margin-right: 10px;"
+        >
+          正在扫描
+        </el-tag>
+        <el-tag
+          v-else-if="scope.row.status == 2"
+          type="success"
+          size="small"
+          style="margin-right: 10px;"
+        >
+          扫描完成
+        </el-tag>
+        <el-tag
+          v-else-if='scope.row.status == "停止"'
+          type="warning"
+          size="small"
+          style="margin-right: 10px;"
+        >
+          手动停止
+        </el-tag>
+      </template>
       </el-table-column>
       <el-table-column
         header-align="center"
@@ -33,15 +60,20 @@
       </el-table-column>
       <el-table-column prop="created_at" label="创建时间" width="150">
       </el-table-column>
-      <el-table-column prop="address" label="操作" width="250">
+      <el-table-column prop="address" label="操作" width="300">
         <template slot-scope="scope">
           <el-button size="mini" @click="handleEdit(scope.row)">编辑</el-button>
           <el-button
             size="mini"
             type="primary"
             @click="handleStart(scope.row.id)"
+            :disabled = "scope.row.status == '运行中'"
             >开始</el-button
           >
+          <el-button size="mini" type="warning"
+          @click="handleStop(scope.row.id)"
+          :disabled = "scope.row.status == '停止'"
+          >停止</el-button>
           <span style="margin-right: 10px"></span>
           <el-popconfirm
             title="您确定要删除吗?"
@@ -56,115 +88,59 @@
     </el-table>
     <!-- 创建项目的对话框 -->
     <el-dialog title="添加任务" :visible.sync="is_show_create_dialog">
-      <el-form
-        :model="create_task_form"
-        :rules="create_task_rules"
-        ref="create_task_form"
-        label-width="80px"
-      >
-        <el-form-item label="名称" prop="name">
-          <el-input
-            v-model="create_task_form.name"
-            placeholder="请输入任务名称"
-          ></el-input>
-        </el-form-item>
-        <el-form-item label="所属公司" prop="company_name">
-          <el-select
-            v-model="create_task_form.company_id"
-            placeholder="请选择所属公司"
-            style="width: 100%"
-          >
-            <el-option
-              v-for="item in company_list"
-              :key="item.id"
-              :label="item.name"
-              :value="item.id"
-            >
-            </el-option>
-          </el-select>
-        </el-form-item>
-        <FormTags
-          @update_list="updateScanArea"
-          label="扫描范围"
-          closable="false"
-          :list="create_task_form.scan_area"
-          formLabelWidth="80px"
-        ></FormTags>
-      </el-form>
+      <TaskForm :form="task_form" :company_list="company_list"></TaskForm>
       <div slot="footer" class="dialog-footer">
         <el-button @click="is_show_create_dialog = false">取消</el-button>
         <el-button type="primary" @click="handleCreateTask">确认</el-button>
       </div>
     </el-dialog>
 
-    <!-- 修改公司信息的对话框 -->
-    <el-dialog title="修改公司信息" :visible.sync="is_show_update_dialog">
-      <el-form label-width="80px">
-        <el-form-item label="名称">
-          <el-input></el-input>
-        </el-form-item>
-      </el-form>
+    <!-- 修改任务信息的对话框 -->
+    <el-dialog title="修改任务" :visible.sync="is_show_update_dialog">
+      <TaskForm :form="task_form" :company_list="company_list"></TaskForm>
       <div slot="footer" class="dialog-footer">
         <el-button @click="is_show_update_dialog = false">取消</el-button>
-        <el-button type="primary" @click="updateCompany">确认</el-button>
+        <el-button type="primary" @click="handleUpdateTask">确认</el-button>
       </div>
     </el-dialog>
   </div>
 </template>
 
 <script>
-import { addTask, getTaskList, deleteTask, startTask } from "@/api/task";
+import {
+  addTask,
+  getTaskList,
+  deleteTask,
+  startTask,
+  stopTask,
+  editTask,
+} from "@/api/task";
 import { getCompanyList } from "@/api/company";
 import { Message } from "element-ui";
-import  FormTags  from "@/components/FormTags";
+import TaskForm from "@/components/TaskForm";
 export default {
   components: {
-     FormTags
- },
+    TaskForm,
+  },
   data() {
     return {
-      task_list: [
-        {
-          id: "1",
-          name: "扫描任务1",
-          scan_area: "192.168.2.20,192.168.2.21",
-          status: "扫描中",
-          company_name: "联想",
-          created_at: "2021-12-1",
-        },
-      ],
+      company_list: [],
+      task_list: [],
       page: {
         offset: 0,
         count: 10,
       },
       is_show_update_dialog: false,
       is_show_create_dialog: false,
-      create_task_form: {
+      task_form: {
         name: "",
         scan_area: [],
         company_id: "",
       },
-      company_list: [
-        {
-          id: "1",
-          name: "联想",
-        },
-        {
-          id: "2",
-          name: "华为",
-        },
-      ],
     };
   },
   created() {
-    getCompanyList(0, -1)
-      .then((resp) => {
-        //修改前端维护的数据
-        this.company_list = resp.data.data;
-      })
-      .catch((err) => {
-        console.log(err);
-      });
+    this.getCompanyList();
     getTaskList(this.page)
       .then((resp) => {
         this.task_list = resp.data.data;
@@ -174,8 +150,15 @@ export default {
       });
   },
   methods: {
-    updateScanArea(list) {
-      this.create_task_form.scan_area = list;
+    getCompanyList() {
+      getCompanyList(0, -1)
+        .then((resp) => {
+          //修改前端维护的数据
+          this.company_list = resp.data.data;
+        })
+        .catch((err) => {
+          console.log(err);
+        });
     },
     //开始任务
     handleStart(id) {
@@ -186,6 +169,30 @@ export default {
             message: "开始任务成功",
           });
           //TODO 修改前端维护的数据
+          this.task_list.forEach((item) => {
+            if (item.id == id) {
+              item.status = "运行中";
+            }
+          });
+        })
+        .catch((err) => {
+          console.log(err);
+        });
+    },
+    //停止任务
+    handleStop(id) {
+      stopTask(id)
+        .then((resp) => {
+          Message({
+            type: "success",
+            message: "停止任务成功",
+          });
+          //TODO 修改前端维护的数据
+          this.task_list.forEach((item) => {
+            if (item.id == id) {
+              item.status = "停止";
+            }
+          });
         })
         .catch((err) => {
           console.log(err);
@@ -195,9 +202,25 @@ export default {
     handleOpenCreateTaskDialog() {
       this.is_show_create_dialog = true;
     },
+    //打开修改任务对话框
+    handleEdit(row) {
+      this.task_form = row;
+      this.is_show_update_dialog = true;
+    },
+    handleDelete(id) {
+      deleteTask(id).then((resp) => {
+        //更新前端维护的数据
+        this.task_list = this.task_list.filter((item) => item.id !== id);
+        //提示消息
+        Message({
+          type: "success",
+          message: "删除成功",
+        });
+      });
+    },
     //添加新任务
     handleCreateTask() {
-      addTask(this.create_task_form)
+      addTask(this.task_form)
         .then((resp) => {
           //更新前端维护的数据
           this.task_list.push(resp.data.data);
@@ -213,22 +236,29 @@ export default {
           console.log(err);
         });
     },
-    handleEdit(row) {
-      console.log(row);
-    },
-    handleDelete(id) {
-      deleteTask(id).then((resp) => {
-        //更新前端维护的数据
-        this.task_list = this.task_list.filter((item) => item.id !== id);
-        //提示消息
-        Message({
-          type: "success",
-          message: "删除成功",
+    //修改任务
+    handleUpdateTask() {
+      editTask(this.task_form)
+        .then((resp) => {
+          //更新前端维护的数据
+          this.task_list = this.task_list.map((item) => {
+            if (item.id === resp.data.data.id) {
+              return resp.data.data;
+            } else {
+              return item;
+            }
+          });
+          //关闭对话框
+          this.is_show_update_dialog = false;
+          //提示消息
+          Message({
+            type: "success",
+            message: "修改成功",
+          });
+        })
+        .catch((err) => {
+          console.log(err);
         });
-      });
-    },
-    updateCompany() {
-      this.is_show_update_dialog = false;
     },
   },
 };

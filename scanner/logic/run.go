@@ -30,32 +30,47 @@ func Run() error {
 	}
 	//1.被动子域名发现,并验证
 	hackflow.SetDebug(true)
-	subdomain, err := hackflow.GetSubfinder().Run(&hackflow.SubfinderRunConfig{
+	subdomainCh, err := hackflow.GetSubfinder().Run(&hackflow.SubfinderRunConfig{
 		Proxy:                          proxy,
 		Stdin:                          domainCh,
 		RemoveWildcardAndDeadSubdomain: true,
 		OutputInHostIPFormat:           true,
 		OutputInJsonLineFormat:         true,
+		Silent:                         true,
 		RoutineCount:                   10000,
-	})
+	}).Result()
 	if err != nil {
 		logrus.Error("subfinder run failed,err:", err)
 		return err
 	}
-	//关联ip地址
-	hostIPCh := redis.SaveIPDomain(subdomain.ParsedResult())
-	logrus.Debug("redis保存完毕")
+	//2.识别操作系统
+	IPAndOSCh := hackflow.GetNmap().OSDection(&hackflow.OSDectionConfig{
+		HostCh:    redis.SaveIPDomain(subdomainCh),
+		Timeout:   1 * time.Minute,
+		BatchSize: 20,
+	}).GetIPAndOSCh()
 	//2.扫描端口
-	nmap, err := hackflow.GetNmap().Run(&hackflow.NmapRunConfig{
-		TargetCh:  hostIPCh,
+	// IPAndPortCh, err := hackflow.GetNaabu().Run(&hackflow.NaabuRunConfig{
+	// 	Stdin:        hackflow.NewPipe(redis.SaveIPAndOS(IPAndOSCh).GetIPCh()),
+	// 	ScanType:     hackflow.CONNECT_SCAN,
+	// 	RoutineCount: 1000,
+	// }).Result()
+	// if err != nil {
+	// 	logrus.Error("naabu run failed,err:", err)
+	// 	return err
+	// }
+	IPAndPortCh := hackflow.NewPortScanner(20 * time.Second).ConnectScan(
+		&hackflow.ScanConfig{
+			HostCh:       redis.SaveIPAndOS(IPAndOSCh).GetIPCh(),
+			RoutineCount: 1000,
+		})
+	//3.扫描服务
+	PortServiceCh := hackflow.GetNmap().ServiceDection(&hackflow.ServiceDectionConfig{
+		TargetCh:  redis.SaveIPAndPort(IPAndPortCh),
 		Timeout:   2 * time.Minute,
 		BatchSize: 30,
-	})
-	if err != nil {
-		logrus.Error("hackflow.GetNmap.Run failed,err:", err)
-		return err
-	}
-	urlCh := ExtractWebService(redis.SaveNampResult(nmap.Print()))
+	}).GetPortServiceCh()
+	urlCh := redis.SavePortService(PortServiceCh).GetWebServiceCh()
 	urlChList := hackflow.NewStream().AddSrc(urlCh).SetDstCount(2).GetDst()
 	//4.存储nmap的扫描结果并从端口中提取web服务端口，获取web服务端口的详细信息
 	requestCh := hackflow.GenRequest(hackflow.GenRequestConfig{
@@ -63,7 +78,6 @@ func Run() error {
 		MethodList:  []string{http.MethodGet},
 		RandomAgent: true,
 	})
-
 	responseCh, err := hackflow.RetryHttpSend(&hackflow.RetryHttpSendConfig{
 		RequestCh:    requestCh,
 		RoutineCount: 1000,
@@ -92,7 +106,7 @@ func Run() error {
 		return err
 	}
 	//存储指纹信息
-	redis.SaveFingerprint(fingerprintCh)
+
 	//5.对web服务进行目录扫描
 	dict, err := os.Open(settings.CurrentConfig.DictPath)
 	if err != nil {
@@ -100,7 +114,7 @@ func Run() error {
 		return err
 	}
 	foundURLCh, err := hackflow.BruteForceURL(&hackflow.BruteForceURLConfig{
-		BaseURLCh:           urlChList[1],
+		BaseURLCh:           redis.SaveFingerprint(fingerprintCh).GetURLCh(),
 		RoutineCount:        1000,
 		Proxy:               proxy,
 		Dictionary:          dict,
@@ -133,7 +147,7 @@ func Run() error {
 
 //readInput 读取输入
 func readInput() (Reader io.Reader, err error) {
-	domainPipe := hackflow.NewPipe(make(chan []byte, 1024))
+	domainPipe := hackflow.NewPipe(make(chan interface{}, 1024))
 	var wg sync.WaitGroup
 	total := 0
 	//1.从域名列表中读
@@ -191,26 +205,4 @@ func readInput() (Reader io.Reader, err error) {
 		}
 	}()
 	return domainPipe, nil
-}
-
-func ExtractWebService(hostCh chan hackflow.HostListItem) chan string {
-	webCh := make(chan string, 10240)
-	go func() {
-		for host := range hostCh {
-			for _, port := range host.PortList {
-				var protocol string
-				if port.Service == "http" {
-					protocol = "http"
-				} else if port.Service == "ssl" {
-					protocol = "https"
-				}
-				if protocol != "" {
-					webCh <- fmt.Sprintf("%s://%s:%d", protocol, host.IP, port.Port)
-					logrus.Debug("web service:", fmt.Sprintf("%s://%s:%d", protocol, host.IP, port.Port))
-				}
-			}
-		}
-		close(webCh)
-	}()
-	return webCh
 }

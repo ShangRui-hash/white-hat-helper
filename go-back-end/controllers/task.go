@@ -28,6 +28,24 @@ func AddTaskHandler(c *gin.Context) {
 	RespSuc(c, task)
 }
 
+func UpdateTaskHandler(c *gin.Context) {
+	//1.接收传参
+	var param param.ParamUpdateTask
+	if msg, err := validate.JSONParam(c, &param); err != nil {
+		zap.L().Error("update task handler param error", zap.Error(err))
+		RespErrMsg(c, CodeInvalidParam, msg)
+		return
+	}
+	//2.业务逻辑
+	task, err := logic.UpdateTask(&param)
+	if err != nil {
+		zap.L().Error("update task handler error", zap.Error(err))
+		RespErr(c, CodeServerBusy)
+		return
+	}
+	RespSuc(c, task)
+}
+
 func GetTaskListHandler(c *gin.Context) {
 	//1.接收传参，后端校验
 	var param param.Page
@@ -76,6 +94,24 @@ func StartTaskHandler(c *gin.Context) {
 	//2.业务逻辑
 	if err := logic.StartTask(id); err != nil {
 		zap.L().Error("start task handler error", zap.Error(err))
+		RespErr(c, CodeServerBusy)
+		return
+	}
+	RespSuc(c, nil)
+}
+
+func StopTaskHandler(c *gin.Context) {
+	//1.接收传参
+	taskID := c.Param("id")
+	id, err := strconv.ParseInt(taskID, 10, 64)
+	if err != nil {
+		zap.L().Error("stop task handler param error", zap.Error(err))
+		RespErr(c, CodeInvalidParam)
+		return
+	}
+	//2.业务逻辑
+	if err := logic.StopTask(id); err != nil {
+		zap.L().Error("stop task handler error", zap.Error(err))
 		RespErr(c, CodeServerBusy)
 		return
 	}

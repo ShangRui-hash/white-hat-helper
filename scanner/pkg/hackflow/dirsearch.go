@@ -21,7 +21,7 @@ func newDirSearch() Tool {
 			link:      "jefftadashi/dirsearch",
 			installer: NewDocker(),
 		},
-		resultPipe: NewPipe(make(chan []byte, 1024)),
+		resultPipe: NewPipe(make(chan interface{}, 1024)),
 	}
 }
 
@@ -96,7 +96,7 @@ func (d *dirSearch) ParsedResult() (<-chan *DirSearchResult, error) {
 	outCh := make(chan *DirSearchResult, 1024)
 	go func() {
 		for line := range d.resultPipe.Chan() {
-			outCh <- d.doParseResult(string(line))
+			outCh <- d.doParseResult(line.(string))
 		}
 		close(outCh)
 	}()

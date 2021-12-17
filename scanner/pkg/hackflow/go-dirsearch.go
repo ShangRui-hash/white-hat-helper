@@ -10,8 +10,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func doGetMoreURL(dict io.Reader, url string) chan string {
-	outCh := make(chan string, 1024)
+func doGetMoreURL(dict io.Reader, url string) chan interface{} {
+	outCh := make(chan interface{}, 1024)
 	go func() {
 		scanner := bufio.NewScanner(dict)
 		for scanner.Scan() {
@@ -23,16 +23,16 @@ func doGetMoreURL(dict io.Reader, url string) chan string {
 }
 
 //GetMoreURL 读取字典，根据基本的url生成更多的url
-func GetMoreURL(dict io.Reader, urlCh chan string) chan string {
+func GetMoreURL(dict io.Reader, urlCh chan interface{}) chan interface{} {
 	stream := NewStream()
 	for url := range urlCh {
-		stream.AddSrc(doGetMoreURL(dict, url))
+		stream.AddSrc(doGetMoreURL(dict, url.(string)))
 	}
 	return stream.SetDstCount(1).GetDst()[0]
 }
 
 type BruteForceURLConfig struct {
-	BaseURLCh           chan string
+	BaseURLCh           chan interface{}
 	RoutineCount        int
 	RandomAgent         bool
 	Proxy               string

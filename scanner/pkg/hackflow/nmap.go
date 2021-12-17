@@ -8,16 +8,11 @@ import (
 	"time"
 
 	"github.com/Ullaakut/nmap"
+	"github.com/sirupsen/logrus"
 )
 
 //UNKNOWN_OS 未知操作系统
 const UNKNOWN_OS = "unknown"
-
-type HostListItem struct {
-	IP       string `json:"ip"`
-	OS       string `json:"os"`
-	PortList []Port `json:"ports"`
-}
 
 type Port struct {
 	Port     int           `json:"port"`
@@ -38,7 +33,8 @@ func (p *Port) String() (string, error) {
 
 type nmapV2 struct {
 	baseTool
-	resultCh chan HostListItem
+	osResultCh          chan *nmap.Run
+	portServiceResultCh chan *nmap.Run
 }
 
 func newNmap() Tool {
@@ -47,7 +43,8 @@ func newNmap() Tool {
 			name: "nmap",
 			desp: "端口扫描、服务识别、操作系统识别",
 		},
-		resultCh: make(chan HostListItem, 10240),
+		osResultCh:          make(chan *nmap.Run, 1024),
+		portServiceResultCh: make(chan *nmap.Run, 1024),
 	}
 }
 
@@ -55,56 +52,103 @@ func GetNmap() *nmapV2 {
 	return container.Get(NMAP).(*nmapV2)
 }
 
-type NmapRunConfig struct {
-	TargetCh  chan string
+type OSDectionConfig struct {
+	HostCh    chan interface{}
 	Timeout   time.Duration
 	BatchSize int
 }
 
-func (n *nmapV2) Run(config *NmapRunConfig) (*nmapV2, error) {
-	batchSize := config.BatchSize
-	batchTargetCh := make(chan []string, 1024)
-	batch := make([]string, 0)
+func (n *nmapV2) OSDection(config *OSDectionConfig) *nmapV2 {
 	go func() {
-		for target := range config.TargetCh {
-			batch = append(batch, target)
-			if len(batch) == batchSize {
-				batchTargetCh <- batch
-				batch = make([]string, 0)
-			}
-		}
-		if len(batch) > 0 {
-			batchTargetCh <- batch
-		}
-		close(batchTargetCh)
-	}()
-	go func() {
-		for targetList := range batchTargetCh {
-			var wg sync.WaitGroup
-			for _, target := range targetList {
+		count := 0
+		var wg sync.WaitGroup
+	LOOP:
+		for {
+			if count < config.BatchSize {
+				target, ok := <-config.HostCh
+				if !ok {
+					break LOOP
+				}
+				count++
 				wg.Add(1)
-				go func(target string) {
+				go func() {
 					defer wg.Done()
-					if err := n.run(target, config.Timeout); err != nil {
-						logger.Error("nmapV2 run faield: ", err)
-					}
-				}(target)
+					n.doOSDection(target.(string), config.Timeout)
+					count--
+				}()
 			}
-			wg.Wait()
 		}
-		close(n.resultCh)
+		wg.Wait()
+		close(n.osResultCh)
 	}()
-	return n, nil
+	return n
 }
 
-func (n *nmapV2) run(target string, timeout time.Duration) error {
+func (n *nmapV2) doOSDection(target string, timeout time.Duration) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	logger.Debug("nmap run:", target)
 	scanner, err := nmap.NewScanner(
 		nmap.WithTargets(target),
-		nmap.WithServiceInfo(),
 		nmap.WithOSDetection(),
+		nmap.WithContext(ctx),
+		nmap.WithSkipHostDiscovery(), // -Pn
+	)
+	if err != nil {
+		logger.Error("nmap.NewScanner faield: ", err)
+		return
+	}
+	result, warnings, err := scanner.Run()
+	logger.Debugf("nmap warnings: %s", warnings)
+	if err != nil {
+		logger.Error("nmap.Run faield: ", err)
+		return
+	}
+	n.osResultCh <- result
+}
+
+type ServiceDectionConfig struct {
+	TargetCh  chan *IPAndPort
+	Timeout   time.Duration
+	BatchSize int
+}
+
+func (n *nmapV2) ServiceDection(config *ServiceDectionConfig) *nmapV2 {
+	go func() {
+		count := 0
+		var wg sync.WaitGroup
+	LOOP:
+		for {
+			if count < config.BatchSize {
+				target, ok := <-config.TargetCh
+				if !ok {
+					break LOOP
+				}
+				count++
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					if err := n.doServiceDection(target, config.Timeout); err != nil {
+						logger.Error("nmapV2 run faield: ", err)
+					}
+					count--
+				}()
+			}
+		}
+		wg.Wait()
+		close(n.portServiceResultCh)
+	}()
+	return n
+}
+
+func (n *nmapV2) doServiceDection(target *IPAndPort, timeout time.Duration) error {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	logger.Debug("nmap do service dection:", target)
+	scanner, err := nmap.NewScanner(
+		nmap.WithTargets(target.IP),
+		nmap.WithPorts(fmt.Sprintf("%d", target.Port)),
+		nmap.WithServiceInfo(),
 		nmap.WithContext(ctx),
 		nmap.WithSkipHostDiscovery(), // -Pn
 	)
@@ -118,47 +162,114 @@ func (n *nmapV2) run(target string, timeout time.Duration) error {
 		logger.Error("nmap.Run faield: ", err)
 		return err
 	}
-	for _, host := range result.Hosts {
-		portList := make([]Port, 0)
-		for _, port := range host.Ports {
-			if port.State.State == "closed" {
-				continue
-			}
-			portList = append(portList, Port{
-				Port:     int(port.ID),
-				Service:  port.Service.Name,
-				Version:  port.Service.Version,
-				Status:   port.State.State,
-				Protocol: port.Protocol,
-				Script:   port.Scripts,
-			})
-			fmt.Printf("port:%+v\n", port)
-		}
-		os := UNKNOWN_OS
-		if len(host.OS.Matches) > 0 {
-			os = host.OS.Matches[0].Name
-		}
-		n.resultCh <- HostListItem{
-			IP:       target,
-			OS:       os,
-			PortList: portList,
-		}
-	}
+	n.portServiceResultCh <- result
 	return nil
 }
 
-func (n *nmapV2) Result() chan HostListItem {
-	return n.resultCh
+type IPAndOS struct {
+	IP string `json:"ip"`
+	OS string `json:"os"`
+}
+type IPAndOSCh chan *IPAndOS
+
+func (i IPAndOSCh) GetIPCh() chan interface{} {
+	IPCh := make(chan interface{}, 1024)
+	go func() {
+		for ipAndOs := range i {
+			IPCh <- ipAndOs.IP
+		}
+		close(IPCh)
+	}()
+	return IPCh
 }
 
-func (n *nmapV2) Print() chan HostListItem {
-	resultCh := make(chan HostListItem, 10240)
+func (n *nmapV2) GetIPAndOSCh() IPAndOSCh {
+	ipAndOsCh := make(chan *IPAndOS, 1024)
 	go func() {
-		for result := range n.resultCh {
-			fmt.Printf("%+v\n", result)
-			resultCh <- result
+		for result := range n.osResultCh {
+			for _, host := range result.Hosts {
+				os := UNKNOWN_OS
+				if len(host.OS.Matches) > 0 {
+					os = host.OS.Matches[0].Name
+				}
+				ipAndOsCh <- &IPAndOS{
+					IP: host.Addresses[0].Addr,
+					OS: os,
+				}
+			}
 		}
-		close(resultCh)
+		close(ipAndOsCh)
+	}()
+	return ipAndOsCh
+}
+
+type IPAndPortSevice struct {
+	IP       string `json:"ip"`
+	PortList []Port `json:"ports"`
+}
+
+type IPAndPortSeviceCh chan *IPAndPortSevice
+
+func (hostCh IPAndPortSeviceCh) GetWebServiceCh() (urlCh chan interface{}) {
+	urlCh = make(chan interface{}, 10240)
+	go func() {
+		for host := range hostCh {
+			for _, port := range host.PortList {
+				var protocol string
+				if port.Service == "http" {
+					protocol = "http"
+				} else if port.Service == "ssl" {
+					protocol = "https"
+				}
+				if protocol != "" {
+					urlCh <- fmt.Sprintf("%s://%s:%d", protocol, host.IP, port.Port)
+					logrus.Debug("web service:", fmt.Sprintf("%s://%s:%d", protocol, host.IP, port.Port))
+				}
+			}
+		}
+		close(urlCh)
+	}()
+	return urlCh
+}
+
+func (n *nmapV2) GetPortServiceCh() chan *IPAndPortSevice {
+	resultCh := make(chan *IPAndPortSevice, 10240)
+	go func() {
+		for result := range n.portServiceResultCh {
+			for _, host := range result.Hosts {
+				portList := make([]Port, 0)
+				for _, port := range host.Ports {
+					if port.State.State == "closed" {
+						continue
+					}
+					portList = append(portList, Port{
+						Port:     int(port.ID),
+						Service:  port.Service.Name,
+						Version:  port.Service.Version,
+						Status:   port.State.State,
+						Protocol: port.Protocol,
+						Script:   port.Scripts,
+					})
+					fmt.Printf("port:%+v\n", port)
+				}
+				resultCh <- &IPAndPortSevice{
+					IP:       host.Addresses[0].Addr,
+					PortList: portList,
+				}
+			}
+		}
 	}()
 	return resultCh
 }
+
+// func (n *nmapV2) Print() chan HostListItem {
+// 	resultCh := make(chan HostListItem, 10240)
+// 	go func() {
+// 		for result := range n.resultCh {
+// 			fmt.Printf("%+v\n", result)
+// 			resultCh <- result
+// 		}
+// 		close(resultCh)
+// 	}()
+// 	return resultCh
+// }

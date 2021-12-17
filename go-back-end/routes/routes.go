@@ -41,15 +41,12 @@ func Setup(mode string) *gin.Engine {
 		v1.GET("/task", controllers.GetTaskListHandler)
 		//删除任务
 		v1.DELETE("/task", controllers.DeleteTaskHandler)
-		// //修改任务
-		// v1.PUT("/task/:id", controllers.UpdateTaskHandler)
+		//修改任务
+		v1.PUT("/task", controllers.UpdateTaskHandler)
 		//开始任务
 		v1.PUT("/task/:id/start", controllers.StartTaskHandler)
-		// //暂停任务
-		// v1.PUT("/task/:id/pause", controllers.PauseTaskHandler)
-		// //继续任务
-		// v1.PUT("/task/:id/continue", controllers.ContinueTaskHandler)
-		// //修改任务
+		//停止任务
+		v1.PUT("/task/:id/stop", controllers.StopTaskHandler)
 		//获取指定公司的主机列表
 		v1.GET("/host/list", controllers.GetHostListHandler)
 		//获取主机详情

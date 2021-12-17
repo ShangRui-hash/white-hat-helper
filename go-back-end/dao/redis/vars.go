@@ -9,4 +9,5 @@ const (
 	IPPortSetKeyPrefix         = "ip_port_set::"
 	IPPortDetailKeyPrefix      = "ip_port_detail::"
 	URLFingerprintSetKeyPrefix = "urlfingerprintset::"
+	TaskPidHashKey             = "task_pid_hash"
 )

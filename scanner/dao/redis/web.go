@@ -58,13 +58,19 @@ func saveHttpResp(resp *hackflow.ParsedHttpResp) error {
 }
 
 //SaveFingerprint 存储指纹信息
-func SaveFingerprint(fingerprintCh chan *hackflow.DectWhatWebResult) {
-	for fingerprint := range fingerprintCh {
-		if err := saveFingerprint(fingerprint); err != nil {
-			continue
+func SaveFingerprint(fingerprintCh hackflow.DectWhatWebResultCh) hackflow.DectWhatWebResultCh {
+	outCh := make(chan *hackflow.DectWhatWebResult, 10240)
+	go func() {
+		defer close(outCh)
+		for fingerprint := range fingerprintCh {
+			outCh <- fingerprint
+			if err := saveFingerprint(fingerprint); err != nil {
+				continue
+			}
+			logrus.Debug("Saved fingerprint: ", fingerprint.URL)
 		}
-		logrus.Debug("Saved fingerprint: ", fingerprint.URL)
-	}
+	}()
+	return outCh
 }
 
 func saveFingerprint(fingerprint *hackflow.DectWhatWebResult) error {

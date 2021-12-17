@@ -1,6 +1,11 @@
 package redis
 
-import "go.uber.org/zap"
+import (
+	"fmt"
+	"strconv"
+
+	"go.uber.org/zap"
+)
 
 const (
 	NOT_STARTED_TASK = "not_started_task"
@@ -13,7 +18,7 @@ const (
 var statusMap = map[string]string{
 	NOT_STARTED_TASK: "未开始",
 	RUNNING_TASK:     "运行中",
-	STOPPED_TASK:     "暂停",
+	STOPPED_TASK:     "停止",
 	COMPLETED_TASK:   "完成",
 	FAILED_TASK:      "失败",
 }
@@ -31,12 +36,33 @@ func GetTaskStatus(taskID int64) (status string, err error) {
 	}
 	return "", nil
 }
+
+//GetTaskStatusText 获取任务状态的文本
 func GetTaskStatusText(taskID int64) (status string, err error) {
 	status, err = GetTaskStatus(taskID)
 	if err != nil {
 		return "", err
 	}
 	return statusMap[status], nil
+}
+
+//SaveTaskPid 存储任务id对应的pid
+func SaveTaskPid(taskID int64, pid int) (err error) {
+	return rdb.HSet(TaskPidHashKey, fmt.Sprintf("%v", taskID), pid).Err()
+}
+
+//ClearTaskStatus 清除任务对应的pid
+func ClearTaskPid(taskID int64) (err error) {
+	return rdb.HDel(TaskPidHashKey, fmt.Sprintf("%v", taskID)).Err()
+}
+
+//GetTaskPid 获取任务的pid
+func GetTaskPid(taskID int64) (pid int, err error) {
+	temp, err := rdb.HGet(TaskPidHashKey, fmt.Sprintf("%v", taskID)).Result()
+	if err != nil {
+		return 0, err
+	}
+	return strconv.Atoi(temp)
 }
 
 //SetTaskStatus 设置任务的状态

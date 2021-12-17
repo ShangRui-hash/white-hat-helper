@@ -9,7 +9,7 @@ import (
 
 type ParamAddTask struct {
 	baseParam
-	CompanyID int      `json:"company_id" binding:"required"`
+	CompanyID int64    `json:"company_id" binding:"required"`
 	Name      string   `json:"name" binding:"required"`
 	ScanArea  []string `json:"scan_area" binding:"required"`
 }
@@ -44,4 +44,13 @@ func IsCIDR(cids string) bool {
 func IsDomain(domain string) bool {
 	domainReg := regexp.MustCompile(`^([a-zA-Z0-9]([a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])?\\.)+[a-zA-Z]{2,6}(/)`)
 	return domainReg.MatchString(domain)
+}
+
+type ParamUpdateTask struct {
+	ID int64 `json:"id" binding:"required"`
+	ParamAddTask
+}
+
+func (p *ParamUpdateTask) Validate() error {
+	return p.ParamAddTask.Validate()
 }

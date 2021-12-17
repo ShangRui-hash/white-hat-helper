@@ -17,6 +17,12 @@ func AddTask(name string, scanArea []string, companyID int64) (id int64, err err
 	return ret.LastInsertId()
 }
 
+func UpdateTask(id, companyID int64, name string, scanArea []string) error {
+	sql := `UPDATE task SET name = ?, scan_area = ? ,company_id=? WHERE id = ?`
+	_, err := db.Exec(sql, name, strings.Join(scanArea, ","), companyID, id)
+	return err
+}
+
 func GetTaskByID(id int64) (*models.Task, error) {
 	sql := `SELECT * FROM task WHERE id = ?`
 	var task models.Task

@@ -7,7 +7,7 @@ import { getToken } from '@/utils/auth' // get token from cookie
 import getPageTitle from '@/utils/get-page-title'
 
 NProgress.configure({ showSpinner: false }) // NProgress Configuration
-
+//无序登录的路由
 const whiteList = ['/login'] // no redirect whitelist
 //拦截路由
 router.beforeEach(async(to, from, next) => {
@@ -33,7 +33,6 @@ router.beforeEach(async(to, from, next) => {
         try {
           // get user info 访问的是store/modules/user.js中的getUserInfo方法
           await store.dispatch('user/getInfo')
-
           next()
         } catch (error) {
           // remove token and go to login page to re-login
@@ -46,14 +45,13 @@ router.beforeEach(async(to, from, next) => {
     }
   } else {
     /* has no token*/
-
     if (whiteList.indexOf(to.path) !== -1) {
       // in the free login whitelist, go directly
       next()
     } else {
       // other pages that do not have permission to access are redirected to the login page.
-      // next(`/login?redirect=${to.path}`)
-      next()
+      next(`/login?redirect=${to.path}`)
+      // next()
       NProgress.done()
     }
   }

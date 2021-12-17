@@ -12,6 +12,19 @@ type DectWhatWebResult struct {
 	FingerPrint map[string]struct{}
 }
 
+type DectWhatWebResultCh chan *DectWhatWebResult
+
+func (d DectWhatWebResultCh) GetURLCh() chan interface{} {
+	urlCh := make(chan interface{}, 1024)
+	go func() {
+		for item := range d {
+			urlCh <- item.URL
+		}
+		close(urlCh)
+	}()
+	return urlCh
+}
+
 //DecWhatWebConfig 是DectWhatWeb的配置
 type DectWhatWebConfig struct {
 	TargetCh     chan *ParsedHttpResp

@@ -1,10 +1,10 @@
 package hackflow
 
 import (
+	"bufio"
 	"encoding/json"
 	"io"
 	"os/exec"
-	"strings"
 
 	"github.com/sirupsen/logrus"
 )
@@ -16,7 +16,8 @@ type IPDomain struct {
 
 type subfinder struct {
 	baseTool
-	resultPipe *Pipe
+	err    error
+	stdout io.Reader
 }
 
 func newSubfinder() Tool {
@@ -27,7 +28,6 @@ func newSubfinder() Tool {
 			link:      "github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest",
 			installer: GetGo(),
 		},
-		resultPipe: NewPipe(make(chan []byte, 1024)),
 	}
 }
 
@@ -43,20 +43,28 @@ type SubfinderRunConfig struct {
 	RemoveWildcardAndDeadSubdomain bool   `flag:"-nW"`
 	OutputInHostIPFormat           bool   `flag:"-oI"`
 	OutputInJsonLineFormat         bool   `flag:"-oJ"`
+	Silent                         bool   `flag:"-silent"`
 }
 
-func (s *subfinder) Run(config *SubfinderRunConfig) (subfinder *subfinder, err error) {
-	args := append([]string{"-silent", "-nC"}, parseConfig(*config)...)
+func (s *subfinder) Run(config *SubfinderRunConfig) (subfinder *subfinder) {
+	args := append([]string{"-nC"}, parseConfig(*config)...)
 	execPath, err := s.GetExecPath()
 	if err != nil {
-		return nil, err
+		s.err = err
+		return nil
 	}
 	cmd := exec.Command(execPath, args...)
 	cmd.Stdin = config.Stdin
-	cmd.Stdout = s.resultPipe
+	//获取一个有名管道，不要使用我们自定义的Pipe类型,因为自定义的Pipe类型是无缓冲的
+	stdpipe, err := cmd.StdoutPipe()
+	if err != nil {
+		s.err = err
+		return nil
+	}
+	s.stdout = stdpipe
 	if err := cmd.Start(); err != nil {
 		logrus.Error("Execute failed when Start:", err)
-		return nil, err
+		return nil
 	}
 	logger.Debugf("%s 启动成功\n", s.name)
 	go func() {
@@ -64,55 +72,35 @@ func (s *subfinder) Run(config *SubfinderRunConfig) (subfinder *subfinder, err e
 			logrus.Error("Execute failed when Wait:", err)
 		}
 		logger.Debugf("%s 已退出\n", s.name)
-		s.resultPipe.Close()
 	}()
-	return s, nil
+	return s
 }
 
-//Print 输出结果
-// func (s *Subfinder) Print() *Subfinder {
-// 	newPipe := NewPipe(make(chan []byte, 1024))
-// 	oldPipe := s.resultPipe
-
-// 	io.Copy(newPipe, oldPipe)
-// 	go func() {
-// 		scanner := bufio.NewScanner(oldPipe)
-// 		for scanner.Scan() {
-// 			line := scanner.Text()
-// 			fmt.Println(line)
-// 			newPipe.Write([]byte(line))
-// 		}
-// 		//关闭写通道
-// 		newPipe.Close()
-// 		logger.Debug("subfinder print done")
-// 	}()
-// 	s.resultPipe = newPipe
-// 	return s
-// }
-
-//StringResult 返回一个只读管道
-func (s *subfinder) StringResult() *Pipe {
-	return s.resultPipe
+func (s *subfinder) GetStdout() (io.Reader, error) {
+	if s.err != nil {
+		return nil, s.err
+	}
+	return s.stdout, nil
 }
 
-//ParsedResult 返回解析后的结果
-func (s *subfinder) ParsedResult() <-chan IPDomain {
+//Result 返回解析后的结果
+func (s *subfinder) Result() (<-chan IPDomain, error) {
+	if s.err != nil {
+		return nil, s.err
+	}
 	ipdomainCh := make(chan IPDomain, 1024)
 	go func() {
-		for result := range s.resultPipe.Chan() {
-			for _, line := range strings.Split(string(result), "\n") {
-				var ipdomain IPDomain
-				if err := json.Unmarshal([]byte(line), &ipdomain); err != nil {
-					logger.Error("json unmarshal failed,err:", err)
-					continue
-				}
-				ipdomainCh <- ipdomain
-				logger.Debug("subfinder parsed result:", ipdomain)
+		scanner := bufio.NewScanner(s.stdout)
+		for scanner.Scan() {
+			var ipdomain IPDomain
+			if err := json.Unmarshal([]byte(scanner.Text()), &ipdomain); err != nil {
+				logger.Error("json unmarshal failed,err:", err)
+				continue
 			}
-
+			ipdomainCh <- ipdomain
 		}
 		close(ipdomainCh)
 		logger.Debug("subfinder parsed result done")
 	}()
-	return ipdomainCh
+	return ipdomainCh, nil
 }

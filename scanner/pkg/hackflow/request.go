@@ -7,7 +7,7 @@ import (
 )
 
 type GenRequestConfig struct {
-	URLCh       chan string
+	URLCh       chan interface{}
 	MethodList  []string
 	RandomAgent bool
 }
@@ -17,7 +17,7 @@ func GenRequest(config GenRequestConfig) chan *http.Request {
 	requestCh := make(chan *http.Request, 1024)
 	go func() {
 		for url := range config.URLCh {
-			doGenRequest(requestCh, url, config.RandomAgent, config.MethodList)
+			doGenRequest(requestCh, url.(string), config.RandomAgent, config.MethodList)
 		}
 		close(requestCh)
 	}()

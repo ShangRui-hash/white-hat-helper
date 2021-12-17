@@ -8,6 +8,14 @@ export function addTask(data) {
         data
     })
 }
+//修改任务
+export function editTask(data) {
+    return request({
+        url:"task",
+        method:"put",
+        data
+    })
+}
 
 //获取任务列表
 export function getTaskList(params) {
@@ -28,10 +36,18 @@ export function deleteTask(id) {
         }
     })
 }
-
+//开始任务
 export function startTask(id){
     return request({
         url:`task/${id}/start`,
+        method:"put",
+    })
+}
+
+//停止任务
+export function stopTask(id){
+    return request({
+        url:`task/${id}/stop`,
         method:"put",
     })
 }

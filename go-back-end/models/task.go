@@ -17,7 +17,7 @@ type Task struct {
 	MetaTime
 	Name         string   `json:"name" db:"name"`
 	Status       string   `json:"status"`
-	ScanArea     string   ` db:"scan_area"`
+	ScanArea     string   `json:"scan_area_raw" db:"scan_area"`
 	ScanAreaList []string `json:"scan_area"`
 	CompanyName  string   `json:"company_name" db:"company_name"`
 }

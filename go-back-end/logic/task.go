@@ -29,6 +29,16 @@ func AddTask(param *param.ParamAddTask) (*models.Task, error) {
 	return GetTaskByID(id)
 }
 
+func UpdateTask(param *param.ParamUpdateTask) (*models.Task, error) {
+	//更新mysql
+	err := mysql.UpdateTask(param.ID, param.CompanyID, param.Name, param.ScanArea)
+	if err != nil {
+		return nil, err
+	}
+	//获取存入的信息，返回给前端
+	return GetTaskByID(param.ID)
+}
+
 func GetTaskByID(id int64) (*models.Task, error) {
 	//1.获取基本信息
 	task, err := mysql.GetTaskByID(id)
@@ -40,6 +50,7 @@ func GetTaskByID(id int64) (*models.Task, error) {
 		return nil, err
 	}
 	task.CompanyName = company.Name
+	task.ScanAreaList = strings.Split(task.ScanArea, ",")
 	//2.获取运行状态
 	status, err := redis.GetTaskStatusText(id)
 	if err != nil {
@@ -67,19 +78,6 @@ func GetTaskList(param *param.Page) ([]*models.Task, error) {
 	return tasks, nil
 }
 
-// func UpdateTask(param *models.ParamUpdateTask) error {
-// 	//1.更新mysql
-// 	err := mysql.UpdateTask(param)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	//2.更新redis
-// 	if err := redis.UpdateTaskStatus(param.ID); err != nil {
-// 		return err
-// 	}
-// 	return nil
-// }
-
 func DeleteTask(id int64) error {
 	//1.删除mysql
 	err := mysql.DeleteTask(id)
@@ -106,17 +104,45 @@ func StartTask(taskID int64) error {
 	}
 	cmd := exec.Command(
 		"white-hat-helper",
-		"-r", "/Applications/MAMP/htdocs/安全开发/PythonProject/white-hat-helper/white-hat-helper/config/redis.json",
+		"-r", "/Applications/MAMP/htdocs/安全开发/PythonProject/white-hat-helper/scanner/config/redis.json",
 		"--cid", fmt.Sprintf("%d", task.CompanyID),
-		"--dict", "/Applications/MAMP/htdocs/安全开发/PythonProject/white-hat-helper/white-hat-helper/dirsearch.txt",
+		"--dict", "/Applications/MAMP/htdocs/安全开发/PythonProject/white-hat-helper/scanner/dirsearch.txt",
 		"-d", task.ScanArea)
 	cmd.Stdout = logFile
 	cmd.Stderr = logFile
 	if err := cmd.Start(); err != nil {
 		return err
 	}
+	//2.存储对应的进程pid
+	if err := redis.SaveTaskPid(taskID, cmd.Process.Pid); err != nil {
+		return err
+	}
 	//3.更新redis
 	if err := redis.BeginTask(taskID); err != nil {
+		return err
+	}
+	return nil
+}
+
+func StopTask(taskID int64) error {
+	//1.获取任务对应的pid
+	pid, err := redis.GetTaskPid(taskID)
+	if err != nil {
+		return err
+	}
+	//2.结束任务
+	process, err := os.FindProcess(pid)
+	if err != nil {
+		return err
+	}
+	if err := process.Kill(); err != nil {
+		return err
+	}
+	//3.删除redis中的pid
+	if err := redis.ClearTaskPid(taskID); err != nil {
+		return err
+	}
+	if err := redis.StopTask(taskID); err != nil {
 		return err
 	}
 	return nil

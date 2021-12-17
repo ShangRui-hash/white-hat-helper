@@ -24,8 +24,8 @@ func saveOneIPDomain(ip, domain string) error {
 }
 
 //SaveIPDomain 保存ip和域名之间的关系
-func SaveIPDomain(inputCh <-chan hackflow.IPDomain) chan string {
-	outputCh := make(chan string, 10240)
+func SaveIPDomain(inputCh <-chan hackflow.IPDomain) chan interface{} {
+	outputCh := make(chan interface{}, 10240)
 	go func() {
 		for input := range inputCh {
 			fmt.Printf("save ip:%s,domain:%s\n", input.IP, input.Domain)
