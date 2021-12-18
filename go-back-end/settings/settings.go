@@ -20,6 +20,11 @@ type AppConfig struct {
 	*LogConfig         `mapstructure:"log"`
 	*MySQLConfig       `mapstructure:"mysql"`
 	*RedisConfig       `mapstructure:"redis"`
+	*ToolConfig        `mapstructure:"tool"`
+}
+type ToolConfig struct {
+	Proxy    string `mapstructure:"proxy"`     //代理地址
+	DictPath string `mapstructure:"dict_path"` //web目录爆破字典
 }
 
 type LogConfig struct {

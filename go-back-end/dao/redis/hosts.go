@@ -1,9 +1,9 @@
 package redis
 
 import (
-	"encoding/json"
 	"fmt"
 	"web_app/models"
+	"web_app/pkg/hackflow"
 
 	"github.com/go-redis/redis"
 	"go.uber.org/zap"
@@ -27,78 +27,43 @@ func GetHostsByCompanyID(companyID, offset, count int64) (hostList []*models.Hos
 	return hostList, nil
 }
 
-//GetOS 获取操作系统类型
-func GetOS(hostList []*models.HostListItem) error {
-	for _, host := range hostList {
-		zap.L().Debug("ip", zap.String("ip", host.IP))
-		os, err := rdb.HGet(IPOSMapKey, host.IP).Result()
-		if err != nil {
-			if err == redis.Nil {
+//SaveNampResult 保存namp结果,输入为流
+func SavePortService(inputCh hackflow.IPAndPortSeviceCh, companyID int64) (outputCh hackflow.IPAndPortSeviceCh) {
+	outputCh = make(chan *hackflow.IPAndPortSevice, 10240)
+	go func() {
+		for hostListItem := range inputCh {
+			if err := doSaveNampResult(hostListItem, companyID); err != nil {
+				zap.L().Error("doSaveNampResult error:", zap.Error(err))
 				continue
 			}
+			outputCh <- hostListItem
+			fmt.Println("save namp result success,item:", hostListItem)
 		}
-		zap.L().Debug("os", zap.String("os", os))
-		host.OS = os
-	}
-	return nil
+		close(outputCh)
+	}()
+	return outputCh
 }
 
-func GetOSByIP(IP string) (string, error) {
-	return rdb.HGet(IPOSMapKey, IP).Result()
-}
-
-//GetPortDetailByIP 获取端口详情
-func GetPortDetailByIP(IP string) ([]models.PortDetail, error) {
-	key := fmt.Sprintf("%s%s", IPPortSetKeyPrefix, IP)
-	//1.获取该ip所有的端口号
-	portList, err := rdb.SMembers(key).Result()
-	if err != nil {
-		return nil, err
-	}
-	//2.从hash表中查询端口的具体信息
-	portDetailList := make([]models.PortDetail, 0, len(portList))
-	for i := range portList {
-		port, err := getPortDetail(IP, portList[i])
+//doSaveNampResult 保存一条nmap的结果
+func doSaveNampResult(hostListItem *hackflow.IPAndPortSevice, companyID int64) error {
+	//2.维护一个ip和 端口+服务的集合
+	for _, port := range hostListItem.PortList {
+		portStr, err := port.String()
 		if err != nil {
 			continue
 		}
-		portDetailList = append(portDetailList, port)
-	}
-	return portDetailList, nil
-}
-
-func getPortDetail(IP, portID string) (port models.PortDetail, err error) {
-	//查询端口的详细信息
-	portDetail, err := rdb.HGet(IPPortDetailKeyPrefix+IP, portID).Result()
-	if err != nil {
-		zap.L().Error("rdb.HGet failed", zap.Error(err))
-		return port, err
-	}
-	//反序列化端口的详细信息
-	if err := json.Unmarshal([]byte(portDetail), &port); err != nil {
-		return port, err
-	}
-	return port, nil
-}
-
-//GetPort 获取端口的概要信息
-func GetPort(hostList []*models.HostListItem) error {
-	for _, host := range hostList {
-		key := fmt.Sprintf("%s%s", IPPortSetKeyPrefix, host.IP)
-		//1.获取端口号列表
-		portList, err := rdb.SMembers(key).Result()
-		if err != nil {
-			return err
+		//维护一个端口号和服务的哈希表,方便更新端口的详细信息
+		if _, err := rdb.HSet(IPPortDetailKeyPrefix+hostListItem.IP, fmt.Sprintf("%d", port.Port), portStr).Result(); err != nil {
+			zap.L().Error("rdb.HSet failed,err:", zap.Error(err))
+			continue
 		}
-		zap.L().Debug("portList", zap.Any("portList", portList))
-		//2.获取端口的概要信息
-		for _, portStr := range portList {
-			port, err := getPortDetail(host.IP, portStr)
-			if err != nil {
-				continue
-			}
-			host.PortList = append(host.PortList, port.Port)
-		}
+		zap.L().Info("save", zap.String("ip", hostListItem.IP), zap.Int("port:", port.Port), zap.String("service:", port.Service))
+	}
+	//3.更新ip 有序集合对应IP的分数
+	score := len(hostListItem.PortList) * 10
+	if _, err := rdb.ZAdd(GetIPSetKey(companyID), redis.Z{Score: float64(score), Member: hostListItem.IP}).Result(); err != nil {
+		zap.L().Error("rdb.ZAdd failed,err:", zap.Error(err))
+		return err
 	}
 	return nil
 }

@@ -28,5 +28,9 @@
         "passwd": "",
         "pool_size": 100
     },
-    "reCAPTCHA_public_key":"6LcrthUcAAAAANkrNrXuePZLNF6O2RLX-1AXDCFq"
+    "reCAPTCHA_public_key":"6LcrthUcAAAAANkrNrXuePZLNF6O2RLX-1AXDCFq",
+    "tool":{
+        "dict_path":"./dict/dirsearch.txt",
+        "proxy":"socks://127.0.0.1:7890"
+    }
 }
