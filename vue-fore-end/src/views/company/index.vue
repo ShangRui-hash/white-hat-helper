@@ -49,6 +49,11 @@
         </template>
       </el-table-column>
     </el-table>
+    <load-more-btn
+      :loading="loading"
+      :loadmore_btn_text="loadmore_btn_text"
+      @loadmore="loadmore"
+    ></load-more-btn>
     <!-- 添加公司对话框 -->
     <el-dialog
       title="添加公司"
@@ -84,11 +89,22 @@
 </template>
 
 <script>
-import { addCompany, deleteCompany, getCompanyList,updateCompany } from "@/api/company";
+import {
+  addCompany,
+  deleteCompany,
+  getCompanyList,
+  updateCompany,
+} from "@/api/company";
+import LoadMoreBtn from "@/components/LoadMoreBtn";
 import { Message } from "element-ui";
 export default {
+  components: {
+    LoadMoreBtn,
+  },
   data() {
     return {
+      loadmore_btn_text: "",
+      loading: false,
       offset: 0,
       count: 10,
       is_show_update_dialog: false,
@@ -96,39 +112,51 @@ export default {
       create_company_form: {
         name: "",
       },
-      update_company_form:{
-        id:"",
-        name:"",
+      update_company_form: {
+        id: "",
+        name: "",
       },
-      company_list: [
-        {
-          id: 1,
-          name: "联想",
-          asset_count: "29",
-          task_count: "12",
-          created_at: "2020-05-02",
-        },
-        {
-          id: 2,
-          name: "乐信",
-          asset_count: "29",
-          task_count: "12",
-          created_at: "2020-05-02",
-        },
-      ],
+      company_list: [],
     };
   },
   created() {
+    this.loading = true;
     //获取公司列表
-    getCompanyList(this.offset, this.count)
-      .then((res) => {
-        this.company_list = res.data.data;
-      })
-      .catch((err) => {
-        console.log(err);
-      });
+    this.getCompanyList();
   },
   methods: {
+    loadmore() {
+      this.loading = true;
+      this.getCompanyList();
+    },
+    //获取公司列表
+    getCompanyList() {
+      getCompanyList(this.offset, this.count)
+        .then((res) => {
+          //更新前端维护的数据
+          let companies =  res.data.data==null?[]:res.data.data;
+          for(let i = 0; i < companies.length; i++){
+            let index = this.company_list.findIndex(item => item.id == companies[i].id);
+            if (index == -1) {
+              this.company_list.push(companies[i]);
+            }else{
+              this.company_list[index] = companies[i];
+            }
+          }
+          //更新分页信息
+          this.offset = this.company_list.length;
+          this.loading = false;
+          //更新按钮文字
+          if (companies.length < this.count) {
+            this.loadmore_btn_text = this.config.nomore_text;
+          } else {
+            this.loadmore_btn_text = this.config.loadmore_text;
+          }
+        })
+        .catch((err) => {
+          console.log(err);
+        });
+    },
     //跳转到公司资产列表页
     handleClickCompanyName(id) {
       this.$router.push({
@@ -166,9 +194,9 @@ export default {
       this.update_company_form.id = row.id;
     },
     //确认修改
-    handleUpdateCompany(){
+    handleUpdateCompany() {
       //1.前端验证
-      if(!this.update_company_form.name){
+      if (!this.update_company_form.name) {
         Message({
           type: "error",
           message: "请输入公司名称",
