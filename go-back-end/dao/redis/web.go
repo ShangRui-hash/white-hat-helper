@@ -2,12 +2,18 @@ package redis
 
 import (
 	"encoding/json"
+	"net/url"
 	"strconv"
+	"strings"
 	"web_app/models"
+	"web_app/pkg/hackflow"
+
+	"github.com/gqcn/structs"
 
 	"go.uber.org/zap"
 )
 
+//GetWebServiceByIP 获取某个ip下的所有web服务
 func GetWebServiceByIP(ip string) ([]models.WebDetail, error) {
 	//1.查询该ip的URL集合
 	URLList, err := rdb.SMembers(URLSetKeyPrefix + ip).Result()
@@ -71,6 +77,7 @@ func GetWebServiceByIP(ip string) ([]models.WebDetail, error) {
 	return webs, nil
 }
 
+//GetWeb 获取hostList中所有主机的web服务
 func GetWeb(hostList []*models.HostListItem) error {
 	for _, host := range hostList {
 		webDetailList, err := GetWebServiceByIP(host.IP)
@@ -80,6 +87,109 @@ func GetWeb(hostList []*models.HostListItem) error {
 		for _, webDetail := range webDetailList {
 			host.WebList = append(host.WebList, webDetail.WebItem)
 		}
+	}
+	return nil
+}
+
+//SaveHttpResp 保存http响应
+func SaveHttpResp(parsedResp chan *hackflow.ParsedHttpResp) chan *hackflow.ParsedHttpResp {
+	outCh := make(chan *hackflow.ParsedHttpResp, 10240)
+	go func() {
+		for resp := range parsedResp {
+			outCh <- resp
+			if err := saveHttpResp(resp); err != nil {
+				continue
+			}
+			zap.L().Debug("Saved url: ", zap.String("url", resp.URL))
+		}
+		close(outCh)
+	}()
+	return outCh
+}
+
+func saveHttpResp(resp *hackflow.ParsedHttpResp) error {
+	u, err := url.Parse(resp.URL)
+	if err != nil {
+		zap.L().Error("Error parsing url: ", zap.Error(err))
+		return err
+	}
+	//TODO 这里可能是ip也可能是域名，需要判断
+	ip := strings.Split(u.Host, ":")[0]
+	//1.维护一个ip的url集合
+	if _, err := rdb.SAdd(URLSetKeyPrefix+ip, resp.URL).Result(); err != nil {
+		zap.L().Error("Error saving url: ", zap.Error(err))
+		return err
+	}
+	header, err := json.Marshal(resp.RespHeader)
+	if err != nil {
+		zap.L().Error("Error marshaling header: ", zap.Error(err))
+		return err
+	}
+	//2.维护一个url 详细信息的hash表
+	data := map[string]interface{}{
+		"status_code": resp.StatusCode,
+		"resp_title":  resp.RespTitle,
+		"resp_body":   resp.RespBody,
+		"resp_header": header,
+		"location":    resp.RespHeader.Get("Location"),
+	}
+	if _, err := rdb.HMSet(URLDetailHashKeyPrefix+resp.URL, data).Result(); err != nil {
+		zap.L().Error("Error saving url: ", zap.Error(err))
+		return err
+	}
+	return nil
+}
+
+//SaveFingerprint 存储指纹信息
+func SaveFingerprint(fingerprintCh hackflow.DectWhatWebResultCh) hackflow.DectWhatWebResultCh {
+	outCh := make(chan *hackflow.DectWhatWebResult, 10240)
+	go func() {
+		defer close(outCh)
+		for fingerprint := range fingerprintCh {
+			outCh <- fingerprint
+			if err := saveFingerprint(fingerprint); err != nil {
+				continue
+			}
+			zap.L().Debug("Saved fingerprint: ", zap.String("url", fingerprint.URL))
+		}
+	}()
+	return outCh
+}
+
+//saveFingerprint 存储指纹信息
+func saveFingerprint(fingerprint *hackflow.DectWhatWebResult) error {
+	//维护一个url的指纹集合
+	for key := range fingerprint.FingerPrint {
+		if _, err := rdb.SAdd(URLFingerprintSetKeyPrefix+fingerprint.URL, key).Result(); err != nil {
+			zap.L().Error("Error saving fingerprint: ", zap.Error(err))
+			return err
+		}
+	}
+	return nil
+}
+
+//SaveFoundURL 存储发现的url
+func SaveFoundURL(foundURLCh chan *hackflow.BruteForceURLResult) {
+	go func() {
+		for foundURL := range foundURLCh {
+			if err := saveFoundURL(foundURL); err != nil {
+				continue
+			}
+			zap.L().Debug("Saved found url: ", zap.String("url:", foundURL.URL))
+		}
+	}()
+}
+
+func saveFoundURL(foundURL *hackflow.BruteForceURLResult) error {
+	//1.维护一个url的目录集合
+	if _, err := rdb.SAdd(FoundURLSetKeyPrefix+foundURL.ParentURL, foundURL.URL).Result(); err != nil {
+		zap.L().Error("Error saving found url: ", zap.Error(err))
+		return err
+	}
+	//2.维护一个url的详细信息的hash表
+	if _, err := rdb.HMSet(URLDetailHashKeyPrefix+foundURL.URL, structs.Map(foundURL)).Result(); err != nil {
+		zap.L().Error("Error saving url: ", zap.Error(err))
+		return err
 	}
 	return nil
 }

@@ -1,14 +1,15 @@
 package logic
 
 import (
-	"fmt"
+	"context"
 	"os"
-	"os/exec"
 	"strings"
+	"web_app/dao/memory"
 	"web_app/dao/mysql"
 	"web_app/dao/redis"
 	"web_app/models"
 	"web_app/param"
+	"web_app/settings"
 
 	"go.uber.org/zap"
 )
@@ -92,32 +93,24 @@ func DeleteTask(id int64) error {
 }
 
 func StartTask(taskID int64) error {
-	//1.查询任务的详细信息
 	task, err := mysql.GetTaskByID(taskID)
 	if err != nil {
 		return err
 	}
-	//2.启动任务
-	logFile, err := os.OpenFile("task.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0777)
+	dict, err := os.Open(settings.Conf.DictPath)
 	if err != nil {
+		zap.L().Error("open dirsearch.txt failed,err:", zap.Error(err))
 		return err
 	}
-	cmd := exec.Command(
-		"white-hat-helper",
-		"-r", "/Applications/MAMP/htdocs/安全开发/PythonProject/white-hat-helper/scanner/config/redis.json",
-		"--cid", fmt.Sprintf("%d", task.CompanyID),
-		"--dict", "/Applications/MAMP/htdocs/安全开发/PythonProject/white-hat-helper/scanner/dirsearch.txt",
-		"-d", task.ScanArea)
-	cmd.Stdout = logFile
-	cmd.Stderr = logFile
-	if err := cmd.Start(); err != nil {
+	ctx, cancel := context.WithCancel(context.Background())
+	//启动协程
+	scanner := NewScanner(ctx, settings.Conf.Proxy, task.CompanyID)
+	if err := scanner.Run(task.ScanArea, dict); err != nil {
 		return err
 	}
-	//2.存储对应的进程pid
-	if err := redis.SaveTaskPid(taskID, cmd.Process.Pid); err != nil {
-		return err
-	}
-	//3.更新redis
+	//维护一个任务id和退出函数的映射
+	memory.RegisterTaskCancelFunc(task.ID, cancel)
+	//更新redis
 	if err := redis.BeginTask(taskID); err != nil {
 		return err
 	}
@@ -125,20 +118,11 @@ func StartTask(taskID int64) error {
 }
 
 func StopTask(taskID int64) error {
-	//1.获取任务对应的pid
-	pid, err := redis.GetTaskPid(taskID)
-	if err != nil {
+	//通知所有相关的协程退出
+	if err := memory.StopTask(taskID); err != nil {
 		return err
 	}
-	//2.结束任务
-	process, err := os.FindProcess(pid)
-	if err != nil {
-		return err
-	}
-	if err := process.Kill(); err != nil {
-		return err
-	}
-	//3.删除redis中的pid
+	//删除redis中的pid
 	if err := redis.ClearTaskPid(taskID); err != nil {
 		return err
 	}
