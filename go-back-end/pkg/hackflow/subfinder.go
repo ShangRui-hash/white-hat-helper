@@ -4,23 +4,17 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
-	"os"
 	"os/exec"
 
 	"github.com/sirupsen/logrus"
 )
 
-type IPDomain struct {
-	IP     string `json:"ip"`
-	Domain string `json:"host"`
-}
-
 type subfinder struct {
 	baseTool
-	err     error
-	stdout  io.Reader
-	process *os.Process
+	err    error
+	stdout io.ReadCloser
 }
 
 func NewSubfinder(ctx context.Context) *subfinder {
@@ -51,7 +45,7 @@ func (s *subfinder) Run(config *SubfinderRunConfig) (subfinder *subfinder) {
 	execPath, err := s.GetExecPath()
 	if err != nil {
 		s.err = err
-		return nil
+		return s
 	}
 	cmd := exec.Command(execPath, args...)
 	cmd.Stdin = config.Stdin
@@ -59,27 +53,29 @@ func (s *subfinder) Run(config *SubfinderRunConfig) (subfinder *subfinder) {
 	stdpipe, err := cmd.StdoutPipe()
 	if err != nil {
 		s.err = err
-		return nil
+		return s
 	}
 	s.stdout = stdpipe
 	if err := cmd.Start(); err != nil {
 		logrus.Error("Execute failed when Start:", err)
-		return nil
+		return s
 	}
 	logger.Debugf("%s 启动成功\n", s.name)
-	s.process = cmd.Process
 	go func() {
 		if err := cmd.Wait(); err != nil {
 			logrus.Error("Execute failed when Wait:", err)
 		}
 		logger.Debugf("%s 已退出\n", s.name)
-		s.process = nil
+		s.stdout.Close()
 	}()
 	go func() {
 		<-s.ctx.Done()
-		if s.process != nil {
-			s.process.Release()
-			s.process.Kill()
+		fmt.Println("subfinder 接收到信号")
+		if err := cmd.Process.Kill(); err != nil {
+			logrus.Error("cmd.Process.Kill failed,err:", err)
+		}
+		if err := cmd.Process.Release(); err != nil {
+			logrus.Error("cmd.Process.Release failed,err:", err)
 		}
 	}()
 	return s
@@ -92,21 +88,29 @@ func (s *subfinder) GetStdout() (io.Reader, error) {
 	return s.stdout, nil
 }
 
+type subfinderJsonResult struct {
+	IP     string `json:"ip"`
+	Domain string `json:"host"`
+}
+
 //Result 返回解析后的结果
-func (s *subfinder) Result() (<-chan IPDomain, error) {
+func (s *subfinder) Result() (<-chan DomainIPs, error) {
 	if s.err != nil {
 		return nil, s.err
 	}
-	ipdomainCh := make(chan IPDomain, 1024)
+	ipdomainCh := make(chan DomainIPs, 1024)
 	go func() {
 		scanner := bufio.NewScanner(s.stdout)
 		for scanner.Scan() {
-			var ipdomain IPDomain
+			var ipdomain subfinderJsonResult
 			if err := json.Unmarshal([]byte(scanner.Text()), &ipdomain); err != nil {
 				logger.Error("json unmarshal failed,err:", err)
 				continue
 			}
-			ipdomainCh <- ipdomain
+			ipdomainCh <- DomainIPs{
+				Domain: ipdomain.Domain,
+				IP:     []string{ipdomain.IP},
+			}
 		}
 		close(ipdomainCh)
 		logger.Debug("subfinder parsed result done")

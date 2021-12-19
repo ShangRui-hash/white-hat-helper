@@ -1,19 +1,15 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"web_app/pkg/hackflow"
 
-	"github.com/ShangRui-hash/hackflow"
 	"github.com/sirupsen/logrus"
 )
 
 func main() {
 	hackflow.SetDebug(true)
-	ksubdomain, err := hackflow.GetKSubdomain()
-	if err != nil {
-		logrus.Error("hackflow.GetKSubdomain faled,err:", err)
-		return
-	}
 	domainCh := make(chan string, 1024)
 	domainList := []string{
 		"lenovo.com",
@@ -31,10 +27,12 @@ func main() {
 		}
 		close(domainCh)
 	}()
-	subdomainCh, err := ksubdomain.Run(hackflow.KSubdomainRunConfig{
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	subdomainCh, err := hackflow.NewKSubdomain(ctx).Run(&hackflow.KSubdomainRunConfig{
 		DomainCh:   domainCh,
 		BruteLayer: 1,
-	})
+	}).Result()
 	if err != nil {
 		logrus.Error("ksubdomain.Run failed,err:", err)
 		return

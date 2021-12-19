@@ -2,91 +2,62 @@ package hackflow
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"os/exec"
+	"strings"
 
-	"github.com/serkanalgur/phpfuncs"
+	"github.com/sirupsen/logrus"
 )
 
 type kSubdomain struct {
 	baseTool
+	err    error
+	stdout io.ReadCloser
 }
 
-func newKSubdomain() Tool {
+func NewKSubdomain(ctx context.Context) *kSubdomain {
 	return &kSubdomain{
 		baseTool: baseTool{
 			name:      KSUBDOMAIN,
 			desp:      "主动域名爆破、域名验证",
-			link:      "https://github.com.cnpmjs.org/knownsec/ksubdomain",
-			installer: GetGit(),
+			link:      "github.com/ShangRui-hash/ksubdomain",
+			installer: GetGo(),
+			ctx:       ctx,
 		},
 	}
 }
 
-//GetKSubdomain 获取工具对象
-func GetKSubdomain() *kSubdomain {
-	return container.Get(KSUBDOMAIN).(*kSubdomain)
-}
-
-//GetExecPath 返回工具执行路径
-func (k *kSubdomain) GetExecPath() (string, error) {
-	execPath, err := k.baseTool.GetExecPath()
-	if err != nil {
-		logger.Error("get clone failed,err:", err)
-		return "", err
-	}
-	execPath = execPath + "/cmd/ksubdomain"
-	if !phpfuncs.FileExists(execPath) {
-		if err := GetGo().Mod(SavePath+"/ksubdomain", "download"); err != nil {
-			logger.Error("get mod failed,err:", err)
-			return "", err
-		}
-		err := GetGo().Build(BuildConfig{
-			Path:  SavePath + "/ksubdomain/cmd",
-			Files: []string{"ksubdomain.go"},
-		})
-		if err != nil {
-			logger.Error("get build failed,err:", err)
-		}
-	}
-	return execPath, nil
-}
-
 type KSubdomainRunConfig struct {
-	BruteLayer int    `flag:"-l"`
-	Full       bool   `flag:"-full"`
-	Verify     bool   `flag:"-verify"`
-	Domain     string `flag:"-d"`
-	DomainFile string `flag:"-dl'`
-	DomainCh   chan string
+	BruteLayer int           `flag:"-l"` //爆破层数
+	Full       bool          `flag:"-full"`
+	Verify     bool          `flag:"-verify"` //验证模式
+	DomainCh   <-chan string //输入管道
 }
 
-func (k *kSubdomain) Run(config *KSubdomainRunConfig) (subdomainCh chan string, err error) {
+func (k *kSubdomain) Run(config *KSubdomainRunConfig) (kSubdomain *kSubdomain) {
 	//构造命令
-	args := append([]string{"-silent"}, parseConfig(*config)...)
+	args := parseConfig(*config)
 	execPath, err := k.GetExecPath()
 	if err != nil {
-		return nil, err
+		k.err = err
+		return k
 	}
 	cmd := exec.Command(execPath, args...)
 	//获取标准输出、标准错误输出
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		logger.Error("cmd.StdoutPipe failed,err:", err)
-		return nil, err
+		k.err = err
+		return k
 	}
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		logger.Error("cmd.StderrPipe failed,err:", err)
-		return nil, err
-	}
-	output := io.MultiReader(stdout, stderr)
+	k.stdout = stdout
 	//获取标准输入
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		logger.Error("cmd.StdinPipe failed,err:", err)
-		return nil, err
+		return k
 	}
 	if config.DomainCh != nil {
 		//写入标准输入
@@ -100,18 +71,63 @@ func (k *kSubdomain) Run(config *KSubdomainRunConfig) (subdomainCh chan string, 
 	//fork子进程
 	if err := cmd.Start(); err != nil {
 		logger.Error("Execute failed when Start:" + err.Error())
-		return nil, err
+		k.err = err
+		return k
 	}
-	logger.Debugf("%s 启动成功\n", k.name)
-	//读取标准输出
-	subdomainCh = make(chan string, 1024)
 	go func() {
-		scanner := bufio.NewScanner(output)
+		cmd.Wait()
+		k.stdout.Close()
+	}()
+	logger.Debugf("%s 启动成功\n", k.name)
+	go func() {
+		<-k.ctx.Done()
+		fmt.Println("ksubdomain 接收到信号")
+		if err := cmd.Process.Kill(); err != nil {
+			logrus.Error("cmd.Process.Kill failed,err:", err)
+		}
+		if err := cmd.Process.Release(); err != nil {
+			logrus.Error("cmd.Process.Release failed,err:", err)
+		}
+	}()
+	return k
+}
+
+func (k *kSubdomain) Result() (<-chan DomainIPs, error) {
+	if k.err != nil {
+		return nil, k.err
+	}
+	//读取标准输出
+	subdomainCh := make(chan DomainIPs, 1024)
+	go func() {
+		scanner := bufio.NewScanner(k.stdout)
 		for scanner.Scan() {
-			subdomainCh <- scanner.Text()
+			if strings.Contains(scanner.Text(), "=>") {
+				temp := strings.Split(scanner.Text(), "=>")
+				domain := strings.TrimSpace(temp[0])
+				part2 := temp[1:]
+				ips := make([]string, 0, len(part2))
+				for _, item := range part2 {
+					if strings.Contains(item, "CNAME") {
+						continue
+					}
+					ips = append(ips, strings.TrimSpace(item))
+				}
+				if len(ips) == 0 {
+					continue
+				}
+				if len(ips) == 1 && ips[0] == "0.0.0.1" {
+					continue
+				}
+				subdomainCh <- DomainIPs{
+					Domain: domain,
+					IP:     ips,
+				}
+			}
+		}
+		if err := scanner.Err(); err != nil {
+			logger.Error("reading standard input:", err)
 		}
 		close(subdomainCh)
 	}()
-
-	return subdomainCh, err
+	return subdomainCh, nil
 }

@@ -1,15 +1,16 @@
 package main
 
 import (
+	"context"
 	"fmt"
-	"white-hat-helper/pkg/hackflow"
+	"web_app/pkg/hackflow"
 
 	"github.com/sirupsen/logrus"
 )
 
 func main() {
 	hackflow.SetDebug(true)
-	domainPipe := hackflow.NewPipe(make(chan []byte, 10000))
+	domainPipe := hackflow.NewPipe(make(chan interface{}, 10000))
 	domainList := []string{
 		"lenovo.com",
 		"lenovo.com.cn",
@@ -25,7 +26,9 @@ func main() {
 		}
 		domainPipe.Close()
 	}()
-	subdomainCh, err := hackflow.GetSubfinder().Run(&hackflow.SubfinderRunConfig{
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	subdomainCh, err := hackflow.NewSubfinder(ctx).Run(&hackflow.SubfinderRunConfig{
 		Proxy:                          "socks://127.0.0.1:7890",
 		Stdin:                          domainPipe,
 		RemoveWildcardAndDeadSubdomain: true,

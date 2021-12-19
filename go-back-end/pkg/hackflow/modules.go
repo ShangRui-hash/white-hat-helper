@@ -9,6 +9,12 @@ import (
 //UNKNOWN_OS 未知操作系统
 const UNKNOWN_OS = "unknown"
 
+//DomainIPs 域名对应的IP地址
+type DomainIPs struct {
+	Domain string   `json:"host"`
+	IP     []string `json:"ip"`
+}
+
 type Port struct {
 	Port     int           `json:"port"`
 	Service  string        `json:"service"`

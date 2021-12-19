@@ -19,6 +19,7 @@ require (
 	github.com/gqcn/structs v1.1.1
 	github.com/hashicorp/go-retryablehttp v0.7.0
 	github.com/jmoiron/sqlx v1.3.1
+	github.com/miekg/dns v1.1.43 // indirect
 	github.com/natefinch/lumberjack v2.0.0+incompatible
 	github.com/onsi/ginkgo v1.16.5 // indirect
 	github.com/onsi/gomega v1.17.0 // indirect

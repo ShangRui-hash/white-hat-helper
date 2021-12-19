@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 	"web_app/dao/redis"
 	"web_app/pkg/hackflow"
@@ -27,14 +28,17 @@ func NewScanner(ctx context.Context, proxy string, companyID int64) *scanner {
 }
 
 //TransformationStage 转化阶段，将目标转化为更多的资产
-func (s *scanner) TransformationStage(scanArea string) (<-chan hackflow.IPDomain, error) {
+func (s *scanner) TransformationStage(scanArea string) (<-chan hackflow.DomainIPs, error) {
 	//生产者：读取域名列表、ip列表
 	domainPipe := hackflow.NewPipe(make(chan interface{}, 1024))
+	domainChForKSubdomain := make(chan string, 1024)
 	go func() {
 		for _, domain := range strings.Split(scanArea, ",") {
 			domainPipe.Write([]byte(strings.TrimSpace(domain) + "\n")) //注意：这里不能用fmt.Fprintln 这种方法向pipe中写数据，否则会导致读不到数据
+			domainChForKSubdomain <- domain
 		}
 		domainPipe.Close()
+		close(domainChForKSubdomain)
 		zap.L().Debug("从列表中读取域名完成")
 	}()
 	//1.被动子域名发现,并验证
@@ -52,11 +56,39 @@ func (s *scanner) TransformationStage(scanArea string) (<-chan hackflow.IPDomain
 		zap.L().Error("subfinder run failed,err:", zap.Error(err))
 		return nil, err
 	}
+	//2.子域名爆破
+	subdomainCh2, err := hackflow.NewKSubdomain(s.ctx).Run(&hackflow.KSubdomainRunConfig{
+		BruteLayer: 1,
+		DomainCh:   domainChForKSubdomain,
+	}).Result()
+	if err != nil {
+		zap.L().Error("ksubdomain run failed,err:", zap.Error(err))
+		return nil, err
+	}
+	outCh := make(chan hackflow.DomainIPs, 1024)
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		for item := range subdomainCh {
+			outCh <- item
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		for item := range subdomainCh2 {
+			outCh <- item
+		}
+	}()
+	go func() {
+		wg.Wait()
+		close(outCh)
+	}()
 	return subdomainCh, nil
 }
 
 //HostScanStage 主机扫描阶段
-func (s *scanner) HostScanStage(subdomainCh <-chan hackflow.IPDomain) (hackflow.IPAndPortSeviceCh, error) {
+func (s *scanner) HostScanStage(subdomainCh <-chan hackflow.DomainIPs) (hackflow.IPAndPortSeviceCh, error) {
 	//1.识别操作系统
 	nmap := hackflow.NewNmap(s.ctx)
 	IPAndOSCh := nmap.OSDection(&hackflow.OSDectionConfig{

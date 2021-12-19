@@ -69,16 +69,18 @@ func saveOneIPDomain(ip, domain string, companyID int64) error {
 }
 
 //SaveIPDomain 保存ip和域名之间的关系
-func SaveIPDomain(inputCh <-chan hackflow.IPDomain, companyID int64) chan interface{} {
+func SaveIPDomain(inputCh <-chan hackflow.DomainIPs, companyID int64) chan interface{} {
 	outputCh := make(chan interface{}, 10240)
 	go func() {
 		for input := range inputCh {
-			fmt.Printf("save ip:%s,domain:%s\n", input.IP, input.Domain)
-			if err := saveOneIPDomain(input.IP, input.Domain, companyID); err != nil {
-				zap.L().Error("redis saveIPDomain failed,err:", zap.Error(err))
-				continue
+			fmt.Printf("save ip:%v,domain:%s\n", input.IP, input.Domain)
+			for _, ip := range input.IP {
+				if err := saveOneIPDomain(ip, input.Domain, companyID); err != nil {
+					zap.L().Error("redis saveIPDomain failed,err:", zap.Error(err))
+					continue
+				}
+				outputCh <- ip
 			}
-			outputCh <- input.IP
 		}
 		close(outputCh)
 	}()
