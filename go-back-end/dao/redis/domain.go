@@ -75,6 +75,19 @@ func saveOneIPDomain(ip, domain string, companyID int64) error {
 //SaveIPDomain 保存ip和域名之间的关系
 func SaveIPDomain(inputCh <-chan hackflow.DomainIPs, companyID int64) chan interface{} {
 	outputCh := make(chan interface{}, 10240)
+	//读取数据库中已有的ip数据
+	go func() {
+		ips, err := GetAllIPsByCompanyID(companyID)
+		if err != nil {
+			zap.L().Error("GetAllIPsByCompanyID failed,err:", zap.Error(err))
+			return
+		}
+		for i := range ips {
+			fmt.Println("已有的ip:", ips[i])
+			outputCh <- ips[i]
+		}
+	}()
+	//存储ip和域名之间的关系
 	go func() {
 		for input := range inputCh {
 			fmt.Printf("save ip:%v,domain:%s\n", input.IP, input.Domain)

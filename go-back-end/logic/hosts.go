@@ -16,6 +16,7 @@ func GetHostList(params *param.ParamGetHostList) ([]*models.HostListItem, error)
 		zap.L().Error("GetHostList redis.GetHostsByCompanyID error", zap.Error(err))
 		return nil, err
 	}
+	//TODO 性能优化，循环一次就够了
 	//2.查询主机列表的操作系统
 	zap.L().Debug("GetHostList redis.GetHostsByCompanyID success", zap.Any("hostList", hostList))
 	if err := redis.GetOS(hostList); err != nil {
@@ -32,7 +33,7 @@ func GetHostList(params *param.ParamGetHostList) ([]*models.HostListItem, error)
 		zap.L().Error("GetHostList redis.GetDomain error", zap.Error(err))
 		return nil, err
 	}
-	//3.查询主机列表的web服务
+	//5.查询主机列表的web服务
 	if err := redis.GetWeb(hostList); err != nil {
 		zap.L().Error("GetHostList redis.GetWeb error", zap.Error(err))
 		return nil, err

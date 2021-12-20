@@ -29,10 +29,16 @@ type WebItem struct {
 
 type WebDetail struct {
 	WebItem
-	RespHeader map[string]interface{}         `json:"resp_header"`
-	RespBody   string                         `json:"resp_body"`
-	WAFName    string                         `json:"waf_name"`
-	Dirs       []hackflow.BruteForceURLResult `json:"dirs"`
+	RespHeader     map[string]interface{}         `json:"resp_header"`
+	RespBody       string                         `json:"resp_body"`
+	WAFName        string                         `json:"waf_name"`
+	ToolStatusList []ToolStatus                   `json:"tool_status_list"`
+	Dirs           []hackflow.BruteForceURLResult `json:"dirs"`
+}
+
+type ToolStatus struct {
+	Name   string `json:"name"`
+	Status bool   `json:"status"`
 }
 
 type Dir struct {

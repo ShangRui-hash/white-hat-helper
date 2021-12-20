@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"os/exec"
 
@@ -68,16 +67,7 @@ func (s *subfinder) Run(config *SubfinderRunConfig) (subfinder *subfinder) {
 		logger.Debugf("%s 已退出\n", s.name)
 		s.stdout.Close()
 	}()
-	go func() {
-		<-s.ctx.Done()
-		fmt.Println("subfinder 接收到信号")
-		if err := cmd.Process.Kill(); err != nil {
-			logrus.Error("cmd.Process.Kill failed,err:", err)
-		}
-		if err := cmd.Process.Release(); err != nil {
-			logrus.Error("cmd.Process.Release failed,err:", err)
-		}
-	}()
+	go s.WaitCtxDone(cmd.Process)
 	return s
 }
 

@@ -56,6 +56,7 @@ var resultReg = regexp.MustCompile(`\[\d{2}:\d{2}:\d{2}\]\s{1}(\d{3})\s+-\s+([0-
 type DirSearchConfig struct {
 	URL                 string   `flag:"-u"`
 	HTTPMethod          string   `flag:"-m"`
+	Proxy               string   `flag:"--proxy"`
 	StatusCodeBlackList string   `flag:"-x"`        //排除的状态码
 	MinRespContentSize  int      `flag:"--minimal"` //最小的响应报文大小,小于该大小的响应报文将被排除
 	FullURL             bool     `flag:"--full-url"`
@@ -92,6 +93,7 @@ func (d *dirSearch) Run(config DirSearchConfig) *dirSearch {
 			logger.Error("Execute failed when Wait:" + err.Error())
 		}
 	}()
+	go d.WaitCtxDone(cmd.Process)
 	return d
 }
 
@@ -124,6 +126,7 @@ func (d *dirSearch) Result() (<-chan *BruteForceURLResult, error) {
 	go func() {
 		scanner := bufio.NewScanner(d.stdout)
 		for scanner.Scan() {
+			fmt.Println(scanner.Text())
 			if item := d.doParseResult(scanner.Text()); item != nil {
 				outCh <- item
 			}

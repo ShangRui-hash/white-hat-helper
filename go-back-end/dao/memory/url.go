@@ -21,5 +21,11 @@ func StopURLScan(url string) error {
 		return errors.New("no cancel func")
 	}
 	f()
+	delete(urlScanCancelFuncMap, url)
 	return nil
+}
+
+func IsURLScanRunning(url string) bool {
+	_, ok := urlScanCancelFuncMap[url]
+	return ok
 }

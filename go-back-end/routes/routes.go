@@ -52,8 +52,11 @@ func Setup(mode string) *gin.Engine {
 		//获取主机详情
 		v1.GET("/host/detail", controllers.GetHostDetailHandler)
 		//对指定url进行目录扫描
-		v1.GET("/url/dirscan", controllers.URLDirScanHandler)
-
+		v1.GET("/url/dirscan/start", controllers.StartURLDirScanHandler)
+		//停止对指定url的目录扫描
+		v1.GET("/url/dirscan/stop", controllers.StopURLDirScanHandler)
+		//删除指定的url的子目录
+		v1.DELETE("/url/subdir", controllers.DeleteURLSubDirHandler)
 	}
 
 	r.NoRoute(func(c *gin.Context) {

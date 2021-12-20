@@ -28,7 +28,7 @@ func NewScanner(ctx context.Context, proxy string, companyID int64) *scanner {
 }
 
 //TransformationStage 转化阶段，将目标转化为更多的资产
-func (s *scanner) TransformationStage(scanArea string) (<-chan hackflow.DomainIPs, error) {
+func (s *scanner) TransformationStage(scanArea string) (chan interface{}, error) {
 	//生产者：读取域名列表、ip列表
 	domainPipe := hackflow.NewPipe(make(chan interface{}, 1024))
 	domainChForKSubdomain := make(chan string, 1024)
@@ -41,6 +41,7 @@ func (s *scanner) TransformationStage(scanArea string) (<-chan hackflow.DomainIP
 		close(domainChForKSubdomain)
 		zap.L().Debug("从列表中读取域名完成")
 	}()
+
 	//1.被动子域名发现,并验证
 	subfinder := hackflow.NewSubfinder(s.ctx)
 	subdomainCh, err := subfinder.Run(&hackflow.SubfinderRunConfig{
@@ -84,15 +85,15 @@ func (s *scanner) TransformationStage(scanArea string) (<-chan hackflow.DomainIP
 		wg.Wait()
 		close(outCh)
 	}()
-	return subdomainCh, nil
+	return redis.SaveIPDomain(subdomainCh, s.companyID), nil
 }
 
 //HostScanStage 主机扫描阶段
-func (s *scanner) HostScanStage(subdomainCh <-chan hackflow.DomainIPs) (hackflow.IPAndPortSeviceCh, error) {
+func (s *scanner) HostScanStage(ipCh chan interface{}) (hackflow.IPAndPortSeviceCh, error) {
 	//1.识别操作系统
 	nmap := hackflow.NewNmap(s.ctx)
 	IPAndOSCh := nmap.OSDection(&hackflow.OSDectionConfig{
-		HostCh:    redis.SaveIPDomain(subdomainCh, s.companyID),
+		HostCh:    ipCh,
 		Timeout:   1 * time.Minute,
 		BatchSize: 20,
 	}).GetIPAndOSCh()
@@ -187,12 +188,12 @@ func (s *scanner) WebScanStage(portServiceCh hackflow.IPAndPortSeviceCh, webDirD
 
 //run 开始扫描
 func (s *scanner) Run(scanArea string, webDirDictionary io.Reader) error {
-	subdomainCh, err := s.TransformationStage(scanArea)
+	ipCh, err := s.TransformationStage(scanArea)
 	if err != nil {
 		return err
 	}
 	zap.L().Debug("s.TransformationStage return")
-	ipAndPortServiceCh, err := s.HostScanStage(subdomainCh)
+	ipAndPortServiceCh, err := s.HostScanStage(ipCh)
 	if err != nil {
 		return err
 	}

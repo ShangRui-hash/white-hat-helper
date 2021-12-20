@@ -14,12 +14,13 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	resultCh, err := hackflow.NewDirSearch(ctx).Run(hackflow.DirSearchConfig{
-		URL:                 "http://49.4.14.213:80/",
+		URL:                 "https://sslvpn.lexin.com",
 		FullURL:             true,
 		RandomAgent:         true,
 		HTTPMethod:          http.MethodGet,
 		MinRespContentSize:  2,
 		StatusCodeBlackList: "403,404,500",
+		Proxy:               "127.0.0.1:7890",
 	}).Result()
 	if err != nil {
 		logrus.Error("dirsearch run failed,err:", err)

@@ -9,10 +9,22 @@ import (
 	"go.uber.org/zap"
 )
 
+//GetAllIPsByCompanyID 获取公司下所有的IP
+func GetAllIPsByCompanyID(companyID int64) (ips []string, err error) {
+	key := GetIPSetKey(companyID)
+	ips, err = rdb.ZRevRange(key, 0, -1).Result()
+	if err != nil {
+		if err == redis.Nil {
+			return []string{}, nil
+		}
+		return nil, err
+	}
+	return ips, nil
+}
+
 //GetHostsByCompanyID 根据公司ID获取主机列表
 func GetHostsByCompanyID(companyID, offset, count int64) (hostList []*models.HostListItem, err error) {
-	key := fmt.Sprintf("ipzset::%d", companyID)
-	zap.L().Debug("key", zap.String("key", key))
+	key := GetIPSetKey(companyID)
 	//1.按照分数获取主机列表
 	ipList, err := rdb.ZRevRange(key, offset, offset+count).Result()
 	if err != nil {
@@ -24,6 +36,15 @@ func GetHostsByCompanyID(companyID, offset, count int64) (hostList []*models.Hos
 			IP: ip,
 		})
 	}
+	//2.启动一个协程，悄咪咪地更新ip的分数
+	go func() {
+		for _, ip := range ipList {
+			if err := UpdateIPScore(companyID, ip); err != nil {
+				zap.L().Error("UpdateIPScore failed,err:", zap.Error(err))
+				continue
+			}
+		}
+	}()
 	return hostList, nil
 }
 
@@ -60,10 +81,10 @@ func doSaveNampResult(hostListItem *hackflow.IPAndPortSevice, companyID int64) e
 		zap.L().Info("save", zap.String("ip", hostListItem.IP), zap.Int("port:", port.Port), zap.String("service:", port.Service))
 	}
 	//3.更新ip 有序集合对应IP的分数
-	score := len(hostListItem.PortList) * 10
-	if _, err := rdb.ZAdd(GetIPSetKey(companyID), redis.Z{Score: float64(score), Member: hostListItem.IP}).Result(); err != nil {
-		zap.L().Error("rdb.ZAdd failed,err:", zap.Error(err))
+	if err := UpdateIPScore(companyID, hostListItem.IP); err != nil {
+		zap.L().Error("UpdateIPScore failed,err:", zap.Error(err))
 		return err
 	}
+
 	return nil
 }

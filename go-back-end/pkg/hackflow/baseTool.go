@@ -2,8 +2,11 @@ package hackflow
 
 import (
 	"context"
+	"os"
 	"os/exec"
 	"path/filepath"
+
+	"github.com/sirupsen/logrus"
 )
 
 //BaseTool 工具基类
@@ -46,4 +49,15 @@ func (b *baseTool) GetExecPath() (string, error) {
 	}
 	b.execPath = execPath
 	return b.execPath, nil
+}
+
+//WaitCtxDone 等待ctx的信号，结束进程
+func (b *baseTool) WaitCtxDone(p *os.Process) {
+	<-b.ctx.Done()
+	if err := p.Kill(); err != nil {
+		logrus.Error("cmd.Process.Kill failed,err:", err)
+	}
+	if err := p.Release(); err != nil {
+		logrus.Error("cmd.Process.Release failed,err:", err)
+	}
 }

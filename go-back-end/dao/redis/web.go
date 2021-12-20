@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"web_app/dao/memory"
 	"web_app/models"
 	"web_app/pkg/hackflow"
 
@@ -41,6 +42,7 @@ func GetWebServiceByIP(ip string) ([]models.WebDetail, error) {
 			WebItem: models.WebItem{
 				URL: url,
 			},
+			ToolStatusList: make([]models.ToolStatus, 0),
 		}
 		//1.获取url的指纹信息
 		if fingerprintList, err := rdb.SMembers(URLFingerprintSetKeyPrefix + url).Result(); err == nil {
@@ -72,6 +74,13 @@ func GetWebServiceByIP(ip string) ([]models.WebDetail, error) {
 		if subDirList, err := getURLByParentURL(url); err == nil {
 			webDetail.Dirs = subDirList
 		}
+
+		//4.查询目录扫描器的运行状态
+		dirScanStatus := models.ToolStatus{
+			Name:   "目录扫描",
+			Status: memory.IsURLScanRunning(url),
+		}
+		webDetail.ToolStatusList = append(webDetail.ToolStatusList, dirScanStatus)
 		webs = append(webs, webDetail)
 	}
 	return webs, nil
@@ -100,6 +109,7 @@ func SaveHttpResp(parsedResp chan *hackflow.ParsedHttpResp) chan *hackflow.Parse
 			if err := saveHttpResp(resp); err != nil {
 				continue
 			}
+
 			zap.L().Debug("Saved url: ", zap.String("url", resp.URL))
 		}
 		close(outCh)
@@ -188,6 +198,21 @@ func saveFoundURL(foundURL *hackflow.BruteForceURLResult) error {
 	}
 	//2.维护一个url的详细信息的hash表
 	if _, err := rdb.HMSet(URLDetailHashKeyPrefix+foundURL.URL, structs.Map(foundURL)).Result(); err != nil {
+		zap.L().Error("Error saving url: ", zap.Error(err))
+		return err
+	}
+	return nil
+}
+
+//DeleteURLSubDir 删除url的指定子目录
+func DeleteURLSubDir(parentURL, subURL string) error {
+	//1.从集合中删除url
+	if _, err := rdb.SRem(FoundURLSetKeyPrefix+parentURL, subURL).Result(); err != nil {
+		zap.L().Error("Error saving found url: ", zap.Error(err))
+		return err
+	}
+	//2.删除url的详细信息
+	if _, err := rdb.Del(URLDetailHashKeyPrefix + subURL).Result(); err != nil {
 		zap.L().Error("Error saving url: ", zap.Error(err))
 		return err
 	}
