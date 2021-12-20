@@ -26,7 +26,11 @@ func GetOS(hostList []*models.HostListItem) error {
 }
 
 func GetOSByIP(IP string) (string, error) {
-	return rdb.HGet(IPOSMapKey, IP).Result()
+	os, err := rdb.HGet(IPOSMapKey, IP).Result()
+	if err != nil && err != redis.Nil {
+		return "", err
+	}
+	return os, nil
 }
 
 func SaveIPAndOS(IPAndOSCh chan *hackflow.IPAndOS) hackflow.IPAndOSCh {

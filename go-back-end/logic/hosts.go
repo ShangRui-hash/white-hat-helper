@@ -41,6 +41,7 @@ func GetHostList(params *param.ParamGetHostList) ([]*models.HostListItem, error)
 	return hostList, nil
 }
 
+//GetHostDetail 获取主机详情
 func GetHostDetail(ip string) (host models.HostDetail, err error) {
 	host.IP = ip
 	//1.查询操作系统类型

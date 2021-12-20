@@ -40,25 +40,13 @@ type BruteForceURLConfig struct {
 	StatusCodeBlackList []int
 }
 
-type BruteForceURLResult struct {
-	Method     string
-	ParentURL  string
-	URL        string
-	Location   string
-	Title      string
-	StatusCode int
-}
-
 func BruteForceURL(ctx context.Context, config *BruteForceURLConfig) (chan *BruteForceURLResult, error) {
-	fmt.Println("start get more url")
 	moreURLCh := GetMoreURL(config.Dictionary, config.BaseURLCh)
-	fmt.Println("get more url return ")
 	requestCh := GenRequest(ctx, GenRequestConfig{
 		URLCh:       moreURLCh,
 		MethodList:  []string{http.MethodGet, http.MethodPost, http.MethodPut},
 		RandomAgent: true,
 	})
-	fmt.Println("gen request return ")
 	respCh, err := RetryHttpSend(ctx, &RetryHttpSendConfig{
 		RequestCh:    requestCh,
 		RoutineCount: config.RoutineCount,
@@ -98,15 +86,14 @@ func BruteForceURL(ctx context.Context, config *BruteForceURLConfig) (chan *Brut
 					continue
 				}
 				outCh <- &BruteForceURLResult{
+					Title:      resp.RespTitle,
+					Method:     resp.Method,
 					ParentURL:  resp.BaseURL,
 					URL:        resp.URL,
 					Location:   resp.RespHeader.Get("Location"),
 					StatusCode: resp.StatusCode,
-					Method:     resp.Method,
-					Title:      resp.RespTitle,
 				}
 			}
-
 		}
 		close(outCh)
 	}()

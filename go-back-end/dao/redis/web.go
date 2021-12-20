@@ -2,12 +2,14 @@ package redis
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/url"
 	"strconv"
 	"strings"
 	"web_app/models"
 	"web_app/pkg/hackflow"
 
+	"github.com/go-redis/redis"
 	"github.com/gqcn/structs"
 
 	"go.uber.org/zap"
@@ -17,7 +19,7 @@ import (
 func GetWebServiceByIP(ip string) ([]models.WebDetail, error) {
 	//1.查询该ip的URL集合
 	URLList, err := rdb.SMembers(URLSetKeyPrefix + ip).Result()
-	if err != nil {
+	if err != nil && err != redis.Nil {
 		return nil, err
 	}
 	//2.查询该ip对应域名的URL集合
@@ -41,36 +43,34 @@ func GetWebServiceByIP(ip string) ([]models.WebDetail, error) {
 			},
 		}
 		//1.获取url的指纹信息
-		fingerprintList, err := rdb.SMembers(URLFingerprintSetKeyPrefix + url).Result()
-		if err != nil {
-			zap.L().Error("rdb.SMembers failed", zap.String("url", url), zap.Error(err))
+		if fingerprintList, err := rdb.SMembers(URLFingerprintSetKeyPrefix + url).Result(); err == nil {
+			webDetail.WebItem.FingerPrint = fingerprintList
 		}
-		webDetail.WebItem.FingerPrint = fingerprintList
-
 		//2.获取url的响应报文信息
-		detail, err := rdb.HGetAll(URLDetailHashKeyPrefix + url).Result()
-		if err != nil {
-			continue
-		}
-
-		if title, ok := detail["resp_title"]; ok {
-			webDetail.WebItem.Title = title
-		}
-		if respBody, ok := detail["resp_body"]; ok {
-			webDetail.RespBody = respBody
-		}
-		if respHeader, ok := detail["resp_header"]; ok {
-			if err := json.Unmarshal([]byte(respHeader), &webDetail.RespHeader); err != nil {
-				zap.L().Error("json.Unmarshal failed ", zap.Error(err))
+		if detail, err := rdb.HGetAll(URLDetailHashKeyPrefix + url).Result(); err == nil {
+			if title, ok := detail["resp_title"]; ok {
+				webDetail.WebItem.Title = title
+			}
+			if respBody, ok := detail["resp_body"]; ok {
+				webDetail.RespBody = respBody
+			}
+			if respHeader, ok := detail["resp_header"]; ok {
+				if err := json.Unmarshal([]byte(respHeader), &webDetail.RespHeader); err != nil {
+					zap.L().Error("json.Unmarshal failed ", zap.Error(err))
+				}
+			}
+			if code, ok := detail["status_code"]; ok {
+				if statusCode, err := strconv.Atoi(code); err == nil {
+					webDetail.WebItem.StatusCode = statusCode
+				}
+			}
+			if location, ok := detail["location"]; ok {
+				webDetail.WebItem.Location = location
 			}
 		}
-		if code, ok := detail["status_code"]; ok {
-			if statusCode, err := strconv.Atoi(code); err == nil {
-				webDetail.WebItem.StatusCode = statusCode
-			}
-		}
-		if location, ok := detail["location"]; ok {
-			webDetail.WebItem.Location = location
+		//3.获取子目录
+		if subDirList, err := getURLByParentURL(url); err == nil {
+			webDetail.Dirs = subDirList
 		}
 		webs = append(webs, webDetail)
 	}
@@ -169,7 +169,7 @@ func saveFingerprint(fingerprint *hackflow.DectWhatWebResult) error {
 }
 
 //SaveFoundURL 存储发现的url
-func SaveFoundURL(foundURLCh chan *hackflow.BruteForceURLResult) {
+func SaveFoundURL(foundURLCh <-chan *hackflow.BruteForceURLResult) {
 	go func() {
 		for foundURL := range foundURLCh {
 			if err := saveFoundURL(foundURL); err != nil {
@@ -192,4 +192,42 @@ func saveFoundURL(foundURL *hackflow.BruteForceURLResult) error {
 		return err
 	}
 	return nil
+}
+
+//getURLByParentURL 获取父url下的所有子url
+func getURLByParentURL(parentURL string) ([]hackflow.BruteForceURLResult, error) {
+	//1.获取子目录
+	urls, err := rdb.SMembers(FoundURLSetKeyPrefix + parentURL).Result()
+	if err != nil && err != redis.Nil {
+		zap.L().Error("Error getting found url: ", zap.Error(err))
+		return nil, err
+	}
+	//2.获取子目录的详细信息
+	webList := make([]hackflow.BruteForceURLResult, 0, len(urls))
+	// if len(urls) > 10 {
+	// 	urls = urls[:10]
+	// }
+	for _, url := range urls {
+		var webItem hackflow.BruteForceURLResult
+		webItem.URL = url
+		if data, err := rdb.HGetAll(URLDetailHashKeyPrefix + url).Result(); err == nil {
+			fmt.Printf("%+v\n", data)
+			if title, ok := data["Title"]; ok {
+				webItem.Title = title
+			}
+			if location, ok := data["Location"]; ok {
+				webItem.Location = location
+			}
+			if location, ok := data["RespSize"]; ok {
+				webItem.RespSize = location
+			}
+			if statusCode, ok := data["StatusCode"]; ok {
+				if code, err := strconv.Atoi(statusCode); err == nil {
+					webItem.StatusCode = code
+				}
+			}
+		}
+		webList = append(webList, webItem)
+	}
+	return webList, nil
 }

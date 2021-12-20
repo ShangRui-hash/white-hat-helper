@@ -72,3 +72,13 @@ type IPAndPortSevice struct {
 }
 
 type IPAndPortSeviceCh chan *IPAndPortSevice
+
+type BruteForceURLResult struct {
+	StatusCode int    `json:"status_code"`
+	Method     string `json:"method"`
+	ParentURL  string `json:"parent_url"`
+	URL        string `json:"url"`
+	RespSize   string `json:"resp_size"`
+	Location   string `json:"location"`
+	Title      string `json:"title"`
+}

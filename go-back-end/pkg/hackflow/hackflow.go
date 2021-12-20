@@ -79,7 +79,6 @@ func init() {
 			GIT:           newGit,
 			SQLMAP:        newSqlmap,
 			URL_COLLECTOR: newUrlCollector,
-			DIRSEARCH:     newDirSearch,
 			HTTPX:         newHttpx,
 			GIT_HACK:      newGitHack,
 			GOWAFW00F:     newGoWafw00f,

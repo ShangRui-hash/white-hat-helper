@@ -12,7 +12,11 @@ import (
 )
 
 func GetDomainListByIP(IP string) ([]string, error) {
-	return rdb.SMembers(fmt.Sprintf("%s%s", DomainSetKeyPrefix, IP)).Result()
+	domains, err := rdb.SMembers(fmt.Sprintf("%s%s", DomainSetKeyPrefix, IP)).Result()
+	if err != nil && err != redis.Nil {
+		return nil, err
+	}
+	return domains, nil
 }
 
 func GetDomainList(hostList []*models.HostListItem) error {

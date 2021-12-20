@@ -1,6 +1,10 @@
 package models
 
-import "github.com/Ullaakut/nmap"
+import (
+	"web_app/pkg/hackflow"
+
+	"github.com/Ullaakut/nmap"
+)
 
 type Port struct {
 	Port    int    `json:"port"`
@@ -25,18 +29,20 @@ type WebItem struct {
 
 type WebDetail struct {
 	WebItem
-	RespHeader map[string]interface{} `json:"resp_header"`
-	RespBody   string                 `json:"resp_body"`
-	WAFName    string                 `json:"waf_name"`
-	Dirs       []Dir                  `json:"dirs"`
+	RespHeader map[string]interface{}         `json:"resp_header"`
+	RespBody   string                         `json:"resp_body"`
+	WAFName    string                         `json:"waf_name"`
+	Dirs       []hackflow.BruteForceURLResult `json:"dirs"`
 }
 
 type Dir struct {
 	URL         string `json:"url"`
 	StatusCode  int    `json:"status_code"`
 	Title       string `json:"title"`
+	Location    string `json:"location"`
 	ContentSize string `json:"content_size"`
 }
+
 type HostListItem struct {
 	IP         string    `json:"ip"`
 	OS         string    `json:"os"`

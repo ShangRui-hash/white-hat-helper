@@ -172,7 +172,7 @@ func (s *scanner) WebScanStage(portServiceCh hackflow.IPAndPortSeviceCh, webDirD
 		Proxy:               s.proxy,
 		Dictionary:          webDirDictionary,
 		RandomAgent:         true,
-		StatusCodeBlackList: []int{404, 405, 403},
+		StatusCodeBlackList: []int{404, 405, 403, 500, 502, 503, 504},
 	})
 	if err != nil {
 		zap.L().Error("burte force url failed,err:", zap.Error(err))

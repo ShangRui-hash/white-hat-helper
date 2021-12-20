@@ -6,6 +6,7 @@ import (
 	"web_app/models"
 	"web_app/pkg/hackflow"
 
+	"github.com/go-redis/redis"
 	"github.com/sirupsen/logrus"
 	"go.uber.org/zap"
 )
@@ -37,7 +38,7 @@ func GetPortDetailByIP(IP string) ([]models.PortDetail, error) {
 	key := fmt.Sprintf("%s%s", IPPortSetKeyPrefix, IP)
 	//1.获取该ip所有的端口号
 	portList, err := rdb.SMembers(key).Result()
-	if err != nil {
+	if err != nil && err != redis.Nil {
 		return nil, err
 	}
 	//2.从hash表中查询端口的具体信息

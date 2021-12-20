@@ -51,6 +51,8 @@ func Setup(mode string) *gin.Engine {
 		v1.GET("/host/list", controllers.GetHostListHandler)
 		//获取主机详情
 		v1.GET("/host/detail", controllers.GetHostDetailHandler)
+		//对指定url进行目录扫描
+		v1.GET("/url/dirscan", controllers.URLDirScanHandler)
 
 	}
 
