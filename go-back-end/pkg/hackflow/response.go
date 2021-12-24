@@ -10,17 +10,6 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-//ParsedHttpResp 解析http响应结果
-type ParsedHttpResp struct {
-	StatusCode int
-	URL        string
-	BaseURL    string
-	Method     string
-	RespTitle  string
-	RespBody   string
-	RespHeader http.Header
-}
-
 //ParseHttpRespConfig 解析http响应配置
 type ParseHttpRespConfig struct {
 	RoutineCount int

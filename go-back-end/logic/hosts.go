@@ -1,6 +1,7 @@
 package logic
 
 import (
+	"net"
 	"web_app/dao/redis"
 	"web_app/models"
 	"web_app/param"
@@ -16,62 +17,47 @@ func GetHostList(params *param.ParamGetHostList) ([]*models.HostListItem, error)
 		zap.L().Error("GetHostList redis.GetHostsByCompanyID error", zap.Error(err))
 		return nil, err
 	}
-	//TODO 性能优化，循环一次就够了
-	//2.查询主机列表的操作系统
-	zap.L().Debug("GetHostList redis.GetHostsByCompanyID success", zap.Any("hostList", hostList))
-	if err := redis.GetOS(hostList); err != nil {
-		zap.L().Error("GetHostList redis.GetOS error", zap.Error(err))
-		return nil, err
+	for i := range hostList {
+		//1.查询主机的操作系统
+		if os, err := redis.GetOSByIP(hostList[i].IP); err == nil {
+			hostList[i].OS = os
+		}
+		//2.查询端口信息
+		if portInfo, err := redis.GetPortByIP(hostList[i].IP); err == nil {
+			hostList[i].PortInfo = portInfo
+		}
+		//3.查询主机对应的域名信息
+		if domainInfo, err := redis.GetDomainInfoByIP(net.ParseIP(hostList[i].IP)); err == nil {
+			hostList[i].DomainInfo = domainInfo
+		}
+		//4.查询web服务信息
+		if webInfo, err := redis.GetWebServiceProfileByIP(hostList[i].IP); err == nil {
+			hostList[i].WebInfo = webInfo
+		}
 	}
-	//3.查询主机列表的端口信息
-	if err := redis.GetPort(hostList); err != nil {
-		zap.L().Error("GetHostList redis.GetPort error", zap.Error(err))
-		return nil, err
-	}
-	//4.查询主机对应的域名列表
-	if err := redis.GetDomainList(hostList); err != nil {
-		zap.L().Error("GetHostList redis.GetDomain error", zap.Error(err))
-		return nil, err
-	}
-	//5.查询主机列表的web服务
-	if err := redis.GetWeb(hostList); err != nil {
-		zap.L().Error("GetHostList redis.GetWeb error", zap.Error(err))
-		return nil, err
-	}
-
 	return hostList, nil
 }
 
-//GetHostDetail 获取主机详情
-func GetHostDetail(ip string) (host models.HostDetail, err error) {
+//GetHostBaseInfo 获取主机的基本信息
+func GetHostBaseInfo(ip string) (host models.HostBaseInfo, err error) {
 	host.IP = ip
 	//1.查询操作系统类型
-	os, err := redis.GetOSByIP(ip)
-	if err != nil {
-		zap.L().Error("GetOSByIP failed ", zap.Error(err))
-		return host, nil
+	if os, err := redis.GetOSByIP(ip); err == nil {
+		host.OS = os
 	}
-	host.OS = os
-	//2.查询端口信息
-	portDetailList, err := redis.GetPortDetailByIP(ip)
-	if err != nil {
-		zap.L().Error("GetHostList redis.GetPort error", zap.Error(err))
-		return host, err
+	//2.查询域名信息
+	if domainInfo, err := redis.GetDomainInfoByIP(net.ParseIP(ip)); err == nil {
+		host.DomainList = domainInfo.DomainList
 	}
-	host.PortList = portDetailList
-	//3.查询web服务信息
-	webServiceList, err := redis.GetWebServiceByIP(ip)
-	if err != nil {
-		zap.L().Error("GetHostList redis.GetWebServiceByIP error", zap.Error(err))
-		return host, err
-	}
-	host.WebList = webServiceList
-	//4.查询域名信息
-	domainList, err := redis.GetDomainListByIP(ip)
-	if err != nil {
-		zap.L().Error("GetHostList redis.GetDomainListByIP error", zap.Error(err))
-		return host, err
-	}
-	host.DomainList = domainList
 	return host, nil
+}
+
+//GetHostPortInfo 获取主机的端口信息
+func GetHostPortInfo(ip string) ([]models.PortDetail, error) {
+	return redis.GetPortDetailByIP(ip)
+}
+
+//GetHostWebInfo 查询主机的web服务信息
+func GetHostWebInfo(ip string, offset, count int) ([]*models.WebDetail, error) {
+	return redis.GetWebServiceByIP(ip, offset, count)
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"regexp"
+	"strings"
 )
 
 type ParamAddTask struct {
@@ -19,6 +20,7 @@ func (p *ParamAddTask) Validate() error {
 		return errors.New("scan area is empty")
 	}
 	for i := range p.ScanArea {
+		p.ScanArea[i] = strings.TrimSpace(p.ScanArea[i])
 		if IsIP(p.ScanArea[i]) {
 			continue
 		} else if IsCIDR(p.ScanArea[i]) {

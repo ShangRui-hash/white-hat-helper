@@ -62,3 +62,21 @@ func DeleteURLSubDirHandler(c *gin.Context) {
 	}
 	RespSuc(c, nil)
 }
+
+func GetSubDirHandler(c *gin.Context) {
+	//1.接收传参
+	var param param.ParamGetSubDir
+	if msg, err := validate.QueryParam(c, &param); err != nil {
+		zap.L().Error("validate param failed", zap.Error(err))
+		RespErrMsg(c, CodeInvalidParam, msg)
+		return
+	}
+	//2.业务逻辑层
+	subDirs, err := logic.GetSubDir(param.ParentURL, param.Offset, param.Count)
+	if err != nil {
+		zap.L().Error("get sub dir failed", zap.Error(err))
+		RespErr(c, CodeServerBusy)
+		return
+	}
+	RespSuc(c, subDirs)
+}

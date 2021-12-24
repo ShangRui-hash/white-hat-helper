@@ -11,7 +11,7 @@ import (
 
 //GetAllIPsByCompanyID 获取公司下所有的IP
 func GetAllIPsByCompanyID(companyID int64) (ips []string, err error) {
-	key := GetIPSetKey(companyID)
+	key := GetCompanyIPZSetKey(companyID)
 	ips, err = rdb.ZRevRange(key, 0, -1).Result()
 	if err != nil {
 		if err == redis.Nil {
@@ -24,7 +24,7 @@ func GetAllIPsByCompanyID(companyID int64) (ips []string, err error) {
 
 //GetHostsByCompanyID 根据公司ID获取主机列表
 func GetHostsByCompanyID(companyID, offset, count int64) (hostList []*models.HostListItem, err error) {
-	key := GetIPSetKey(companyID)
+	key := GetCompanyIPZSetKey(companyID)
 	//1.按照分数获取主机列表
 	ipList, err := rdb.ZRevRange(key, offset, offset+count).Result()
 	if err != nil {
@@ -85,6 +85,5 @@ func doSaveNampResult(hostListItem *hackflow.IPAndPortSevice, companyID int64) e
 		zap.L().Error("UpdateIPScore failed,err:", zap.Error(err))
 		return err
 	}
-
 	return nil
 }

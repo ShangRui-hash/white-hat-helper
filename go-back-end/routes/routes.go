@@ -49,14 +49,25 @@ func Setup(mode string) *gin.Engine {
 		v1.PUT("/task/:id/stop", controllers.StopTaskHandler)
 		//获取指定公司的主机列表
 		v1.GET("/host/list", controllers.GetHostListHandler)
-		//获取主机详情
-		v1.GET("/host/detail", controllers.GetHostDetailHandler)
+		//获取指定公司的站点列表
+		v1.GET("/website/list", controllers.GetWebSiteListHandler)
+		//获取主机的基本信息
+		v1.GET("/host/baseInfo", controllers.GetHostBaseInfoHandler)
+		//获取主机的端口信息
+		v1.GET("/host/portInfo", controllers.GetHostPortInfoHandler)
+		//获取主机的web服务信息
+		v1.GET("/host/webInfo", controllers.GetHostWebInfoHandler)
 		//对指定url进行目录扫描
 		v1.GET("/url/dirscan/start", controllers.StartURLDirScanHandler)
 		//停止对指定url的目录扫描
 		v1.GET("/url/dirscan/stop", controllers.StopURLDirScanHandler)
 		//删除指定的url的子目录
 		v1.DELETE("/url/subdir", controllers.DeleteURLSubDirHandler)
+		//获取指定url的子目录
+		v1.GET("/url/subdir", controllers.GetSubDirHandler)
+		//获取指定公司的统计信息
+		v1.GET("/company/stat", controllers.GetCompanyStatHandler)
+
 	}
 
 	r.NoRoute(func(c *gin.Context) {

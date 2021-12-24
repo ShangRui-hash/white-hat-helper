@@ -1,29 +1,11 @@
 package redis
 
 import (
-	"web_app/models"
 	"web_app/pkg/hackflow"
 
 	"github.com/go-redis/redis"
 	"github.com/sirupsen/logrus"
-	"go.uber.org/zap"
 )
-
-//GetOS 获取操作系统类型
-func GetOS(hostList []*models.HostListItem) error {
-	for _, host := range hostList {
-		zap.L().Debug("ip", zap.String("ip", host.IP))
-		os, err := rdb.HGet(IPOSMapKey, host.IP).Result()
-		if err != nil {
-			if err == redis.Nil {
-				continue
-			}
-		}
-		zap.L().Debug("os", zap.String("os", os))
-		host.OS = os
-	}
-	return nil
-}
 
 func GetOSByIP(IP string) (string, error) {
 	os, err := rdb.HGet(IPOSMapKey, IP).Result()

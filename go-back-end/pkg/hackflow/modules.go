@@ -2,6 +2,7 @@ package hackflow
 
 import (
 	"encoding/json"
+	"net/http"
 
 	"github.com/Ullaakut/nmap"
 )
@@ -81,4 +82,16 @@ type BruteForceURLResult struct {
 	RespSize   string `json:"resp_size"`
 	Location   string `json:"location"`
 	Title      string `json:"title"`
+}
+
+//ParsedHttpResp 解析http响应结果
+type ParsedHttpResp struct {
+	StatusCode int
+	URL        string
+	BaseURL    string //父URL
+	Method     string
+	RespTitle  string
+	RespBody   string
+	Location   string
+	RespHeader http.Header
 }

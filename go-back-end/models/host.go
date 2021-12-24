@@ -1,23 +1,11 @@
 package models
 
 import (
+	"net/http"
 	"web_app/pkg/hackflow"
 
 	"github.com/Ullaakut/nmap"
 )
-
-type Port struct {
-	Port    int    `json:"port"`
-	Service string `json:"service"`
-	Status  string `json:"status"`
-}
-
-type PortDetail struct {
-	Port
-	Version  string        `json:"version"`
-	Protocol string        `json:"protocol"`
-	Script   []nmap.Script `json:"script"`
-}
 
 type WebItem struct {
 	URL         string   `json:"url"`
@@ -29,9 +17,9 @@ type WebItem struct {
 
 type WebDetail struct {
 	WebItem
-	RespHeader     map[string]interface{}         `json:"resp_header"`
-	RespBody       string                         `json:"resp_body"`
 	WAFName        string                         `json:"waf_name"`
+	RespBody       string                         `json:"resp_body"`
+	RespHeader     http.Header                    `json:"resp_header"`
 	ToolStatusList []ToolStatus                   `json:"tool_status_list"`
 	Dirs           []hackflow.BruteForceURLResult `json:"dirs"`
 }
@@ -50,18 +38,49 @@ type Dir struct {
 }
 
 type HostListItem struct {
-	IP         string    `json:"ip"`
-	OS         string    `json:"os"`
-	DomainList []string  `json:"domain_list"`
-	PortList   []Port    `json:"ports"`
-	WebList    []WebItem `json:"webs"`
+	IP          string `json:"ip"`
+	OS          string `json:"os"`
+	*PortInfo   `json:"port_info"`
+	*WebInfo    `json:"web_info"`
+	*DomainInfo `json:"domain_info"`
+}
+
+type Port struct {
+	Port    int    `json:"port"`
+	Service string `json:"service"`
+	Status  string `json:"status"`
+}
+
+type PortDetail struct {
+	Port
+	Version  string        `json:"version"`
+	Protocol string        `json:"protocol"`
+	Script   []nmap.Script `json:"script"`
+}
+
+type PortInfo struct {
+	Total    int    `json:"total"` //端口总数
+	PortList []Port `json:"ports"` //部分端口
+}
+
+type WebInfo struct {
+	Total   int       `json:"total"` //web服务总数
+	WebList []WebItem `json:"webs"`  //部分web服务
+}
+
+type DomainInfo struct {
+	Total      int      `json:"total"` //域名总数
+	DomainList []string `json:"domains"`
 }
 
 type HostDetail struct {
-	IP         string       `json:"ip"`
-	OS         string       `json:"os"`
-	Company    string       `json:"company"`
-	DomainList []string     `json:"domain_list"`
-	PortList   []PortDetail `json:"ports"`
-	WebList    []WebDetail  `json:"webs"`
+	PortList []PortDetail `json:"ports"`
+	WebList  []WebDetail  `json:"webs"`
+}
+
+type HostBaseInfo struct {
+	IP         string   `json:"ip"`
+	OS         string   `json:"os"`
+	Company    string   `json:"company"`
+	DomainList []string `json:"domain_list"`
 }

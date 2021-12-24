@@ -6,9 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-
-	"github.com/serkanalgur/phpfuncs"
-	"github.com/sirupsen/logrus"
 )
 
 func doGetMoreURL(dict io.Reader, url string, outCh chan interface{}) chan interface{} {
@@ -31,16 +28,18 @@ func GetMoreURL(dict io.Reader, urlCh chan interface{}) chan interface{} {
 	return outCh
 }
 
+var DefaultStatusCodeBlackList string = "400,401,402,403,404,405,500,501,502,503,504"
+
 type BruteForceURLConfig struct {
 	BaseURLCh           chan interface{}
 	RoutineCount        int
 	RandomAgent         bool
 	Proxy               string
+	StatusCodeBlackList string
 	Dictionary          io.Reader
-	StatusCodeBlackList []int
 }
 
-func BruteForceURL(ctx context.Context, config *BruteForceURLConfig) (chan *BruteForceURLResult, error) {
+func BruteForceURL(ctx context.Context, config *BruteForceURLConfig) (chan *ParsedHttpResp, error) {
 	moreURLCh := GetMoreURL(config.Dictionary, config.BaseURLCh)
 	requestCh := GenRequest(ctx, GenRequestConfig{
 		URLCh:       moreURLCh,
@@ -63,39 +62,8 @@ func BruteForceURL(ctx context.Context, config *BruteForceURLConfig) (chan *Brut
 		return nil, err
 	}
 	//解析响应报文
-	parsedRespCh, err := ParseHttpResp(ctx, &ParseHttpRespConfig{
+	return ParseHttpResp(ctx, &ParseHttpRespConfig{
 		RoutineCount: 1000,
 		HttpRespCh:   respCh,
 	})
-	if err != nil {
-		logrus.Error("parseHttpResp failed,err:", err)
-		return nil, err
-	}
-	outCh := make(chan *BruteForceURLResult, 10240)
-	go func() {
-	LOOP:
-		for {
-			select {
-			case <-ctx.Done():
-				break LOOP
-			case resp, ok := <-parsedRespCh:
-				if !ok {
-					break LOOP
-				}
-				if phpfuncs.InArray(resp.StatusCode, config.StatusCodeBlackList) {
-					continue
-				}
-				outCh <- &BruteForceURLResult{
-					Title:      resp.RespTitle,
-					Method:     resp.Method,
-					ParentURL:  resp.BaseURL,
-					URL:        resp.URL,
-					Location:   resp.RespHeader.Get("Location"),
-					StatusCode: resp.StatusCode,
-				}
-			}
-		}
-		close(outCh)
-	}()
-	return outCh, nil
 }

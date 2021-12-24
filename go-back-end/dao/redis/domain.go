@@ -2,32 +2,56 @@ package redis
 
 import (
 	"fmt"
+	"net"
 	"net/url"
 	"strings"
 	"web_app/models"
 	"web_app/pkg/hackflow"
 
+	mapset "github.com/deckarep/golang-set"
 	"github.com/go-redis/redis"
 	"go.uber.org/zap"
 )
 
-func GetDomainListByIP(IP string) ([]string, error) {
+//GetDomainInfoByIP 获取ip对应的域名信息
+func GetDomainInfoByIP(IP net.IP) (*models.DomainInfo, error) {
+	var domainInfo models.DomainInfo
 	domains, err := rdb.SMembers(fmt.Sprintf("%s%s", DomainSetKeyPrefix, IP)).Result()
 	if err != nil && err != redis.Nil {
 		return nil, err
 	}
-	return domains, nil
+	domainInfo.Total = len(domains)
+	domainInfo.DomainList = domains
+	return &domainInfo, nil
 }
 
-func GetDomainList(hostList []*models.HostListItem) error {
-	for _, host := range hostList {
-		domainList, err := GetDomainListByIP(host.IP)
-		if err != nil {
-			return err
-		}
-		host.DomainList = domainList
+//GetIPsByDomain 获取域名对应的ip地址
+func GetIPsByDomain(domain string) ([]string, error) {
+	return rdb.SMembers(GetIPSetKey(domain)).Result()
+}
+
+//GetDomainURLsByIPUR 根据以ip为host的url获取以域名为host的url列表
+func GetDomainURLsByIPURL(IpUrl string) ([]string, error) {
+	u, err := url.Parse(IpUrl)
+	if err != nil {
+		return nil, err
 	}
-	return nil
+	ip, port := extractIPAndPort(u.Host)
+	domainInfo, err := GetDomainInfoByIP(ip)
+	if err != nil {
+		return nil, err
+	}
+	domainURLs := make([]string, 0, domainInfo.Total)
+	for i := range domainInfo.DomainList {
+		domainURLs = append(domainURLs, fmt.Sprintf("%s://%s:%v", u.Scheme, domainInfo.DomainList[i], port))
+	}
+	return domainURLs, nil
+}
+
+//extractIPAndPort 提取ip和端口
+func extractIPAndPort(host string) (ip net.IP, port string) {
+	ipWithPort := strings.Split(host, ":")
+	return net.ParseIP(ipWithPort[0]), ipWithPort[1]
 }
 
 //AppendDomainURL 将url中的ip替换为域名，并追加到url管道中
@@ -36,23 +60,15 @@ func AppendDomainURL(inURLCh chan interface{}) (outURLCh chan interface{}) {
 	go func() {
 		for input := range inURLCh {
 			outURLCh <- input
-			u, err := url.Parse(input.(string))
+			domainURL, err := GetDomainURLsByIPURL(input.(string))
 			if err != nil {
 				continue
 			}
-			ipWithPort := strings.Split(u.Host, ":")
-			ip := ipWithPort[0]
-			port := ipWithPort[1]
-			domainList, err := GetDomainListByIP(ip)
-			if err != nil {
-				continue
-			}
-			for _, domain := range domainList {
-				u := fmt.Sprintf("%s://%s:%v", u.Scheme, domain, port)
-				outURLCh <- u
-				zap.L().Info("append a url", zap.String("web service", u))
+			for i := range domainURL {
+				outURLCh <- domainURL[i]
 			}
 		}
+		close(outURLCh)
 	}()
 	return outURLCh
 }
@@ -60,12 +76,23 @@ func AppendDomainURL(inURLCh chan interface{}) (outURLCh chan interface{}) {
 //saveOneIPDomain 保存一个 ip 和 域名之间的对应关系
 func saveOneIPDomain(ip, domain string, companyID int64) error {
 	//维护一个ip有序集合,键为公司id
-	if _, err := rdb.ZAdd(GetIPSetKey(companyID), redis.Z{Score: 0, Member: ip}).Result(); err != nil {
+	if _, err := rdb.ZAdd(GetCompanyIPZSetKey(companyID), redis.Z{Score: 0, Member: ip}).Result(); err != nil {
 		zap.L().Error("rdb.ZAdd failed,err:", zap.Error(err))
 		return err
 	}
-	//关联ip和域名，以ip为键，域名为值
+	//维护一个域名有序集合,键为公司id
+	if _, err := rdb.ZAdd(GetCompanyDomainZSetKey(companyID), redis.Z{Score: 0, Member: domain}).Result(); err != nil {
+		zap.L().Error("rdb.ZAdd failed,err:", zap.Error(err))
+		return err
+	}
+	//关联ip和域名
+	//以ip为键，域名为值
 	if _, err := rdb.SAdd(DomainSetKeyPrefix+ip, domain).Result(); err != nil {
+		zap.L().Error("rdb.SAdd failed,err:%v", zap.Error(err))
+		return err
+	}
+	//以域名为键，ip为值
+	if _, err := rdb.SAdd(IPSetKeyPrefix+domain, ip).Result(); err != nil {
 		zap.L().Error("rdb.SAdd failed,err:%v", zap.Error(err))
 		return err
 	}
@@ -74,6 +101,7 @@ func saveOneIPDomain(ip, domain string, companyID int64) error {
 
 //SaveIPDomain 保存ip和域名之间的关系
 func SaveIPDomain(inputCh <-chan hackflow.DomainIPs, companyID int64) chan interface{} {
+	ipSet := mapset.NewSet()
 	outputCh := make(chan interface{}, 10240)
 	//读取数据库中已有的ip数据
 	go func() {
@@ -83,8 +111,10 @@ func SaveIPDomain(inputCh <-chan hackflow.DomainIPs, companyID int64) chan inter
 			return
 		}
 		for i := range ips {
-			fmt.Println("已有的ip:", ips[i])
-			outputCh <- ips[i]
+			if !ipSet.Contains(ips[i]) {
+				outputCh <- ips[i]
+				ipSet.Add(ips[i])
+			}
 		}
 	}()
 	//存储ip和域名之间的关系
@@ -96,7 +126,10 @@ func SaveIPDomain(inputCh <-chan hackflow.DomainIPs, companyID int64) chan inter
 					zap.L().Error("redis saveIPDomain failed,err:", zap.Error(err))
 					continue
 				}
-				outputCh <- ip
+				if !ipSet.Contains(ip) {
+					outputCh <- ip
+					ipSet.Add(ip)
+				}
 			}
 		}
 		close(outputCh)

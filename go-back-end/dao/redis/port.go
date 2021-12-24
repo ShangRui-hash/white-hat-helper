@@ -68,26 +68,26 @@ func getPortDetail(IP, portID string) (port models.PortDetail, err error) {
 }
 
 //GetPort 获取端口的概要信息
-func GetPort(hostList []*models.HostListItem) error {
-	for j := range hostList {
-		key := fmt.Sprintf("%s%s", IPPortSetKeyPrefix, hostList[j].IP)
-		//1.获取端口号列表
-		portList, err := rdb.SMembers(key).Result()
-		if err != nil {
-			return err
-		}
-		if len(portList) > 20 {
-			portList = portList[:20]
-		}
-		zap.L().Debug("portList", zap.Any("portList", portList))
-		//2.获取端口的概要信息
-		for i := range portList {
-			port, err := getPortDetail(hostList[j].IP, portList[i])
-			if err != nil {
-				continue
-			}
-			hostList[j].PortList = append(hostList[j].PortList, port.Port)
-		}
+func GetPortByIP(ip string) (*models.PortInfo, error) {
+	var portInfo models.PortInfo
+	key := fmt.Sprintf("%s%s", IPPortSetKeyPrefix, ip)
+	//1.获取端口号列表
+	portList, err := rdb.SMembers(key).Result()
+	if err != nil {
+		return nil, err
 	}
-	return nil
+	portInfo.Total = len(portList)
+	if portInfo.Total > 20 {
+		portList = portList[:20]
+	}
+	portInfo.PortList = make([]models.Port, 0, len(portList))
+	//2.获取端口的概要信息
+	for i := range portList {
+		port, err := getPortDetail(ip, portList[i])
+		if err != nil {
+			continue
+		}
+		portInfo.PortList = append(portInfo.PortList, port.Port)
+	}
+	return &portInfo, nil
 }

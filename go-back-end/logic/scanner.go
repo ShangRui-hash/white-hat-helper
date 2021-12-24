@@ -51,36 +51,37 @@ func (s *scanner) TransformationStage(scanArea string) (chan interface{}, error)
 		OutputInHostIPFormat:           true,
 		OutputInJsonLineFormat:         true,
 		Silent:                         true,
-		RoutineCount:                   10000,
+		RoutineCount:                   1000,
 	}).Result()
 	if err != nil {
 		zap.L().Error("subfinder run failed,err:", zap.Error(err))
 		return nil, err
 	}
 	//2.子域名爆破
-	subdomainCh2, err := hackflow.NewKSubdomain(s.ctx).Run(&hackflow.KSubdomainRunConfig{
-		BruteLayer: 1,
-		DomainCh:   domainChForKSubdomain,
-	}).Result()
-	if err != nil {
-		zap.L().Error("ksubdomain run failed,err:", zap.Error(err))
-		return nil, err
-	}
+	// subdomainCh2, err := hackflow.NewKSubdomain(s.ctx).Run(&hackflow.KSubdomainRunConfig{
+	// 	BruteLayer: 1,
+	// 	DomainCh:   domainChForKSubdomain,
+	// }).Result()
+	// if err != nil {
+	// 	zap.L().Error("ksubdomain run failed,err:", zap.Error(err))
+	// 	return nil, err
+	// }
 	outCh := make(chan hackflow.DomainIPs, 1024)
 	var wg sync.WaitGroup
-	wg.Add(2)
+	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		for item := range subdomainCh {
 			outCh <- item
 		}
 	}()
-	go func() {
-		defer wg.Done()
-		for item := range subdomainCh2 {
-			outCh <- item
-		}
-	}()
+	// wg.Add(1)
+	// go func() {
+	// 	defer wg.Done()
+	// 	for item := range subdomainCh2 {
+	// 		outCh <- item
+	// 	}
+	// }()
 	go func() {
 		wg.Wait()
 		close(outCh)
@@ -122,16 +123,14 @@ func (s *scanner) HostScanStage(ipCh chan interface{}) (hackflow.IPAndPortSevice
 func (s *scanner) WebScanStage(portServiceCh hackflow.IPAndPortSeviceCh, webDirDictionary io.Reader) error {
 	//1.提取web服务
 	urlCh := redis.SavePortService(portServiceCh, s.companyID).GetWebServiceCh()
-	urlChList := hackflow.NewStream().AddSrc(redis.AppendDomainURL(urlCh)).SetDstCount(2).GetDst()
 	requestCh := hackflow.GenRequest(s.ctx, hackflow.GenRequestConfig{
-		URLCh:       urlChList[0],
+		URLCh:       urlCh,
 		MethodList:  []string{http.MethodGet},
 		RandomAgent: true,
 	})
-	zap.L().Debug("hackflow.GenRequest return")
 	responseCh, err := hackflow.RetryHttpSend(s.ctx, &hackflow.RetryHttpSendConfig{
 		RequestCh:    requestCh,
-		RoutineCount: 1000,
+		RoutineCount: 100,
 		HttpClientConfig: hackflow.HttpClientConfig{
 			Proxy:    s.proxy,
 			RetryMax: 1,
@@ -145,21 +144,19 @@ func (s *scanner) WebScanStage(portServiceCh hackflow.IPAndPortSeviceCh, webDirD
 		zap.L().Error("retryHttpSend failed,err:", zap.Error(err))
 		return err
 	}
-	zap.L().Debug("hackflow.RetryHttpSend return ")
 	//解析响应报文
 	parsedRespCh, err := hackflow.ParseHttpResp(s.ctx, &hackflow.ParseHttpRespConfig{
-		RoutineCount: 1000,
+		RoutineCount: 100,
 		HttpRespCh:   responseCh,
 	})
 	if err != nil {
 		zap.L().Error("parseHttpResp failed,err:", zap.Error(err))
 		return err
 	}
-	zap.L().Debug("hackflow.ParseHttpResp return")
 	//4.存储响应报文，并对web服务进行指纹识别
 	fingerprintCh, err := hackflow.DectWhatWeb(s.ctx, &hackflow.DectWhatWebConfig{
-		RoutineCount: 1000,
-		TargetCh:     redis.SaveHttpResp(parsedRespCh),
+		RoutineCount: 100,
+		TargetCh:     redis.SaveHttpResp(parsedRespCh, s.companyID),
 	})
 	if err != nil {
 		zap.L().Error("dectWhatWeb failed,err:", zap.Error(err))
@@ -167,22 +164,20 @@ func (s *scanner) WebScanStage(portServiceCh hackflow.IPAndPortSeviceCh, webDirD
 	}
 	zap.L().Debug("hackflow.dectWhatWeb return")
 	//5.对web服务进行目录扫描
-	foundURLCh, err := hackflow.BruteForceURL(s.ctx, &hackflow.BruteForceURLConfig{
+	respCh, err := hackflow.BruteForceURL(s.ctx, &hackflow.BruteForceURLConfig{
 		BaseURLCh:           redis.SaveFingerprint(fingerprintCh).GetURLCh(),
-		RoutineCount:        1000,
+		RoutineCount:        100,
 		Proxy:               s.proxy,
 		Dictionary:          webDirDictionary,
 		RandomAgent:         true,
-		StatusCodeBlackList: []int{404, 405, 403, 500, 502, 503, 504},
+		StatusCodeBlackList: hackflow.DefaultStatusCodeBlackList,
 	})
 	if err != nil {
 		zap.L().Error("burte force url failed,err:", zap.Error(err))
 		return err
 	}
-	zap.L().Debug("hackflow.bruteForceURL return")
 	//6.存储目录扫描结果
-	redis.SaveFoundURL(foundURLCh)
-	zap.L().Debug("redis.SaveFoundURL return")
+	redis.SaveHttpResp(respCh, s.companyID)
 	return nil
 }
 
