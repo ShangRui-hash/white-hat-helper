@@ -92,12 +92,13 @@ func StartTaskHandler(c *gin.Context) {
 		return
 	}
 	//2.业务逻辑
-	if err := logic.StartTask(id); err != nil {
+	status, err := logic.StartTask(id)
+	if err != nil {
 		zap.L().Error("start task handler error", zap.Error(err))
 		RespErr(c, CodeServerBusy)
 		return
 	}
-	RespSuc(c, nil)
+	RespSuc(c, status)
 }
 
 func StopTaskHandler(c *gin.Context) {
@@ -110,10 +111,11 @@ func StopTaskHandler(c *gin.Context) {
 		return
 	}
 	//2.业务逻辑
-	if err := logic.StopTask(id); err != nil {
+	status, err := logic.StopTask(id)
+	if err != nil {
 		zap.L().Error("stop task handler error", zap.Error(err))
 		RespErr(c, CodeServerBusy)
 		return
 	}
-	RespSuc(c, nil)
+	RespSuc(c, status)
 }

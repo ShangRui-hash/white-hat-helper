@@ -8,99 +8,36 @@ import (
 	"time"
 
 	"github.com/Ullaakut/nmap"
-	"github.com/sirupsen/logrus"
 )
 
-type nmapV2 struct {
+type portServiceDetector struct {
 	baseTool
-	osResultCh          chan *nmap.Run
 	portServiceResultCh chan *nmap.Run
 }
 
-func NewNmap(ctx context.Context) *nmapV2 {
-	return &nmapV2{
+func NewPortServiceDetector(ctx context.Context) *portServiceDetector {
+	return &portServiceDetector{
 		baseTool: baseTool{
 			ctx:  ctx,
-			name: "nmap",
-			desp: "端口扫描、服务识别、操作系统识别",
+			name: "port-service-detector",
+			desp: "端口服务识别",
 		},
-		osResultCh:          make(chan *nmap.Run, 1024),
 		portServiceResultCh: make(chan *nmap.Run, 1024),
 	}
 }
 
-type OSDectionConfig struct {
-	HostCh    chan interface{}
-	Timeout   time.Duration
-	BatchSize int
-}
-
-func (n *nmapV2) OSDection(config *OSDectionConfig) *nmapV2 {
-	var count int32 = 0
-	var wg sync.WaitGroup
-	go func() {
-	LOOP:
-		for {
-			if count < int32(config.BatchSize) {
-				select {
-				case <-n.ctx.Done():
-					break LOOP
-				case target, ok := <-config.HostCh:
-					if !ok {
-						break LOOP
-					}
-					atomic.AddInt32(&count, 1)
-					wg.Add(1)
-					go func() {
-						defer wg.Done()
-						n.doOSDection(target.(string), config.Timeout)
-						atomic.AddInt32(&count, -1)
-					}()
-				}
-			}
-		}
-		//等待所有进程干完后
-		wg.Wait()
-		close(n.osResultCh)
-	}()
-	return n
-}
-
-func (n *nmapV2) doOSDection(target string, timeout time.Duration) {
-	ctx, cancel := context.WithTimeout(n.ctx, timeout)
-	defer cancel()
-	logger.Debug("nmap run:", target)
-	scanner, err := nmap.NewScanner(
-		nmap.WithTargets(target),
-		nmap.WithOSDetection(),
-		nmap.WithContext(ctx),
-		nmap.WithSkipHostDiscovery(), // -Pn
-	)
-	if err != nil {
-		logger.Error("nmap.NewScanner faield: ", err)
-		return
-	}
-	result, warnings, err := scanner.Run()
-	if len(warnings) > 0 {
-		logger.Debugf("nmap warnings: %s", warnings)
-	}
-	if err != nil {
-		logger.Error("nmap.Run faield: ", err)
-		return
-	}
-	n.osResultCh <- result
-}
-
 type ServiceDectionConfig struct {
+	*BaseConfig
 	TargetCh  chan *IPAndPort
 	Timeout   time.Duration
 	BatchSize int
 }
 
-func (n *nmapV2) ServiceDection(config *ServiceDectionConfig) *nmapV2 {
+func (n *portServiceDetector) Run(config *ServiceDectionConfig) *portServiceDetector {
 	var count int32 = 0
 	var wg sync.WaitGroup
 	lackCh := make(chan struct{}, 1024)
+	//监控当前进程数量，如果小于最大进程，就向lackCh中发送信号
 	go func() {
 	LOOP:
 		for {
@@ -121,6 +58,9 @@ func (n *nmapV2) ServiceDection(config *ServiceDectionConfig) *nmapV2 {
 		for {
 			select {
 			case <-n.ctx.Done():
+				if config.CallAfterCtxDone != nil {
+					config.CallAfterCtxDone(n)
+				}
 				break LOOP
 			case <-lackCh:
 				target, ok := <-config.TargetCh
@@ -132,7 +72,7 @@ func (n *nmapV2) ServiceDection(config *ServiceDectionConfig) *nmapV2 {
 				go func() {
 					defer wg.Done()
 					if err := n.doServiceDection(target, config.Timeout); err != nil {
-						logger.Error("nmapV2 run faield: ", err)
+						logger.Error("portServiceDetector run faield: ", err)
 					}
 					atomic.AddInt32(&count, -1)
 				}()
@@ -140,11 +80,17 @@ func (n *nmapV2) ServiceDection(config *ServiceDectionConfig) *nmapV2 {
 		}
 		wg.Wait()
 		close(n.portServiceResultCh)
+		if config.CallAfterComplete != nil {
+			config.CallAfterComplete(n)
+		}
 	}()
+	if config.CallAfterBegin != nil {
+		config.CallAfterBegin(n)
+	}
 	return n
 }
 
-func (n *nmapV2) doServiceDection(target *IPAndPort, timeout time.Duration) error {
+func (n *portServiceDetector) doServiceDection(target *IPAndPort, timeout time.Duration) error {
 	ctx, cancel := context.WithTimeout(n.ctx, timeout)
 	defer cancel()
 	logger.Debug("nmap do service dection:", target)
@@ -169,42 +115,20 @@ func (n *nmapV2) doServiceDection(target *IPAndPort, timeout time.Duration) erro
 	return nil
 }
 
-func (n *nmapV2) GetIPAndOSCh() IPAndOSCh {
-	ipAndOsCh := make(chan *IPAndOS, 1024)
-	go func() {
-		for result := range n.osResultCh {
-			for _, host := range result.Hosts {
-				logger.Debugf("os:%+v\n", host.OS)
-				os := UNKNOWN_OS
-				if len(host.OS.Matches) > 0 {
-					os = host.OS.Matches[0].Name
-				}
-				ipAndOsCh <- &IPAndOS{
-					IP: host.Addresses[0].Addr,
-					OS: os,
-				}
-			}
-		}
-		close(ipAndOsCh)
-	}()
-	return ipAndOsCh
-}
-
 func (hostCh IPAndPortSeviceCh) GetWebServiceCh() (urlCh chan interface{}) {
 	urlCh = make(chan interface{}, 10240)
 	go func() {
 		for host := range hostCh {
-			for _, port := range host.PortList {
+			for i := range host.PortList {
 				var protocol string
-				if port.Service == "http" {
+				if host.PortList[i].Service == "http" {
 					protocol = "http"
-				} else if port.Service == "ssl" {
+				} else if host.PortList[i].Service == "ssl" {
 					protocol = "https"
 				}
 				if protocol != "" {
 					//IP形式的url
-					urlCh <- fmt.Sprintf("%s://%s:%d", protocol, host.IP, port.Port)
-					logrus.Debug("web service:", fmt.Sprintf("%s://%s:%d", protocol, host.IP, port.Port))
+					urlCh <- fmt.Sprintf("%s://%s:%d", protocol, host.IP, host.PortList[i].Port)
 				}
 			}
 		}
@@ -213,7 +137,7 @@ func (hostCh IPAndPortSeviceCh) GetWebServiceCh() (urlCh chan interface{}) {
 	return urlCh
 }
 
-func (n *nmapV2) GetPortServiceCh() chan *IPAndPortSevice {
+func (n *portServiceDetector) GetPortServiceCh() chan *IPAndPortSevice {
 	resultCh := make(chan *IPAndPortSevice, 10240)
 	go func() {
 		for result := range n.portServiceResultCh {
@@ -239,6 +163,7 @@ func (n *nmapV2) GetPortServiceCh() chan *IPAndPortSevice {
 				}
 			}
 		}
+		close(resultCh)
 	}()
 	return resultCh
 }

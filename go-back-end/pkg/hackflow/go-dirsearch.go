@@ -38,15 +38,26 @@ type BruteForceURLConfig struct {
 	StatusCodeBlackList string
 	Dictionary          io.Reader
 }
+type dirSearchGo struct {
+	baseTool
+}
 
-func BruteForceURL(ctx context.Context, config *BruteForceURLConfig) (chan *ParsedHttpResp, error) {
+func NewDirSearchGo(ctx context.Context) *dirSearchGo {
+	return &dirSearchGo{
+		baseTool{
+			ctx: ctx,
+		},
+	}
+}
+
+func (d *dirSearchGo) Run(config *BruteForceURLConfig) (chan *ParsedHttpResp, error) {
 	moreURLCh := GetMoreURL(config.Dictionary, config.BaseURLCh)
-	requestCh := GenRequest(ctx, GenRequestConfig{
+	requestCh := GenRequest(d.ctx, GenRequestConfig{
 		URLCh:       moreURLCh,
 		MethodList:  []string{http.MethodGet, http.MethodPost, http.MethodPut},
 		RandomAgent: true,
 	})
-	respCh, err := RetryHttpSend(ctx, &RetryHttpSendConfig{
+	respCh, err := RetryHttpSend(d.ctx, &RetryHttpSendConfig{
 		RequestCh:    requestCh,
 		RoutineCount: config.RoutineCount,
 		HttpClientConfig: HttpClientConfig{
@@ -62,7 +73,7 @@ func BruteForceURL(ctx context.Context, config *BruteForceURLConfig) (chan *Pars
 		return nil, err
 	}
 	//解析响应报文
-	return ParseHttpResp(ctx, &ParseHttpRespConfig{
+	return ParseHttpResp(d.ctx, &ParseHttpRespConfig{
 		RoutineCount: 1000,
 		HttpRespCh:   respCh,
 	})

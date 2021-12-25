@@ -10,32 +10,30 @@ import (
 
 func main() {
 	hackflow.SetDebug(true)
-	domainPipe := hackflow.NewPipe(make(chan interface{}, 10000))
-	domainList := []string{
-		"lenovo.com",
-		"lenovo.com.cn",
-		"lenovomm.com",
-		"lenovo.cn",
-		"lenovo.net",
-		"motorola.com",
-		"motorola.com.cn",
-	}
+	domainPipe := make(chan string, 10000)
+	domainList := []string{"qschou.com", "qsebao.com", "duoerehospital.com", "duoerpharmacy.com"}
 	go func() {
 		for _, domain := range domainList {
-			domainPipe.Chan() <- []byte(domain + "\n")
+			domainPipe <- domain
 		}
-		domainPipe.Close()
+		close(domainPipe)
 	}()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	subdomainCh, err := hackflow.NewSubfinder(ctx).Run(&hackflow.SubfinderRunConfig{
 		Proxy:                          "socks://127.0.0.1:7890",
-		Stdin:                          domainPipe,
+		DomainCh:                       domainPipe,
 		RemoveWildcardAndDeadSubdomain: true,
 		OutputInHostIPFormat:           true,
 		OutputInJsonLineFormat:         true,
 		Silent:                         true,
 		RoutineCount:                   1000,
+		BaseConfig: &hackflow.BaseConfig{
+			CallAfterBegin:    nil,
+			CallAfterComplete: nil,
+			CallAfterCtxDone:  nil,
+			CallAfterFailed:   nil,
+		},
 	}).Result()
 	if err != nil {
 		logrus.Errorf("subfinder run failed,err:%s", err)

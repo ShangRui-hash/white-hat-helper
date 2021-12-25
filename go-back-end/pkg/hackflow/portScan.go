@@ -8,6 +8,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 const portListStrParts = 2
@@ -18,20 +20,25 @@ const (
 )
 
 type portScanner struct {
-	ctx         context.Context
+	baseTool
 	dialer      net.Dialer
 	ipAndPortCh chan *IPAndPort
 }
 
 func NewPortScanner(ctx context.Context, timeout time.Duration) *portScanner {
 	return &portScanner{
-		ctx:         ctx,
+		baseTool: baseTool{
+			ctx:  ctx,
+			name: "port-scanner",
+			desp: "端口扫描",
+		},
 		dialer:      net.Dialer{Timeout: timeout},
 		ipAndPortCh: make(chan *IPAndPort, 1024),
 	}
 }
 
 type ScanConfig struct {
+	*BaseConfig
 	HostCh       chan interface{}
 	RoutineCount int
 	PortRange    string
@@ -103,6 +110,7 @@ func (p *portScanner) genTargets(HostCh chan interface{}, portRange string) (cha
 			}
 		}
 		close(targets)
+		logrus.Debug("targetCh closed")
 	}()
 	return targets, nil
 }
@@ -124,6 +132,9 @@ func (p *portScanner) ConnectScan(config *ScanConfig) (IPAndPortCh, error) {
 			for {
 				select {
 				case <-p.ctx.Done():
+					if config.CallAfterCtxDone != nil {
+						config.CallAfterCtxDone(p)
+					}
 					break LOOP
 				case ipAndPort, ok := <-targetCh:
 					if !ok {
@@ -134,9 +145,15 @@ func (p *portScanner) ConnectScan(config *ScanConfig) (IPAndPortCh, error) {
 			}
 		}()
 	}
+	if config.CallAfterBegin != nil {
+		config.CallAfterBegin(p)
+	}
 	go func() {
 		wg.Wait()
 		close(p.ipAndPortCh)
+		if config.CallAfterComplete != nil {
+			config.CallAfterComplete(p)
+		}
 	}()
 	return p.ipAndPortCh, nil
 }

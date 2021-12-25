@@ -8,45 +8,75 @@ import (
 	"sync"
 	"time"
 	"web_app/dao/redis"
+	"web_app/models"
 	"web_app/pkg/hackflow"
 
 	"go.uber.org/zap"
 )
 
-type scanner struct {
-	ctx       context.Context
-	proxy     string
-	companyID int64
+func GetDefaultBaseConfig(taskID int64) *hackflow.BaseConfig {
+	return &hackflow.BaseConfig{
+		CallAfterBegin: func(t hackflow.Tool) {
+			if err := redis.BeginTask(taskID, t.GetName()); err != nil {
+				zap.L().Error("redis.BeginTask failed,err:", zap.Error(err))
+				return
+			}
+		},
+		CallAfterComplete: func(t hackflow.Tool) {
+			if err := redis.CompletedTask(taskID, t.GetName()); err != nil {
+				zap.L().Error("redis.CompleteTask failed,err:", zap.Error(err))
+				return
+			}
+		},
+		CallAfterCtxDone: func(t hackflow.Tool) {
+			if err := redis.StopTask(taskID, t.GetName()); err != nil {
+				zap.L().Error("redis.StopTask failed,err:", zap.Error(err))
+				return
+			}
+		},
+		CallAfterFailed: func(t hackflow.Tool) {
+			if err := redis.FailedTask(taskID, t.GetName()); err != nil {
+				zap.L().Error("redis.FailedTask failed,err:", zap.Error(err))
+				return
+			}
+		},
+	}
 }
 
-func NewScanner(ctx context.Context, proxy string, companyID int64) *scanner {
+type scanner struct {
+	ctx   context.Context
+	proxy string
+	task  *models.Task
+}
+
+func NewScanner(ctx context.Context, proxy string, task *models.Task) *scanner {
 	return &scanner{
-		ctx:       ctx,
-		proxy:     proxy,
-		companyID: companyID,
+		ctx:   ctx,
+		proxy: proxy,
+		task:  task,
 	}
 }
 
 //TransformationStage 转化阶段，将目标转化为更多的资产
-func (s *scanner) TransformationStage(scanArea string) (chan interface{}, error) {
+func (s *scanner) TransformationStage() (chan interface{}, error) {
 	//生产者：读取域名列表、ip列表
-	domainPipe := hackflow.NewPipe(make(chan interface{}, 1024))
-	domainChForKSubdomain := make(chan string, 1024)
+	domainPipe := make(chan string, 1024)
+	// domainChForKSubdomain := make(chan string, 1024)
 	go func() {
-		for _, domain := range strings.Split(scanArea, ",") {
-			domainPipe.Write([]byte(strings.TrimSpace(domain) + "\n")) //注意：这里不能用fmt.Fprintln 这种方法向pipe中写数据，否则会导致读不到数据
-			domainChForKSubdomain <- domain
+		for _, domain := range strings.Split(s.task.ScanArea, ",") {
+			zap.L().Info("domain:", zap.String("domain", domain))
+			domainPipe <- domain
+			// domainChForKSubdomain <- domain
 		}
-		domainPipe.Close()
-		close(domainChForKSubdomain)
+		close(domainPipe)
+		// close(domainChForKSubdomain)
 		zap.L().Debug("从列表中读取域名完成")
 	}()
-
 	//1.被动子域名发现,并验证
-	subfinder := hackflow.NewSubfinder(s.ctx)
-	subdomainCh, err := subfinder.Run(&hackflow.SubfinderRunConfig{
+	subdomainCh, err := hackflow.NewSubfinder(s.ctx).Run(&hackflow.SubfinderRunConfig{
+		BaseConfig:                     GetDefaultBaseConfig(s.task.ID),
 		Proxy:                          s.proxy,
-		Stdin:                          domainPipe,
+		DomainCh:                       domainPipe,
 		RemoveWildcardAndDeadSubdomain: true,
 		OutputInHostIPFormat:           true,
 		OutputInJsonLineFormat:         true,
@@ -72,6 +102,7 @@ func (s *scanner) TransformationStage(scanArea string) (chan interface{}, error)
 	go func() {
 		defer wg.Done()
 		for item := range subdomainCh {
+			zap.L().Info("xxxsubdomain:", zap.String("subdomain", item.Domain), zap.String("ip", item.IP[0]))
 			outCh <- item
 		}
 	}()
@@ -86,22 +117,22 @@ func (s *scanner) TransformationStage(scanArea string) (chan interface{}, error)
 		wg.Wait()
 		close(outCh)
 	}()
-	return redis.SaveIPDomain(subdomainCh, s.companyID), nil
+	return redis.SaveIPDomain(outCh, s.task.CompanyID), nil
 }
 
 //HostScanStage 主机扫描阶段
 func (s *scanner) HostScanStage(ipCh chan interface{}) (hackflow.IPAndPortSeviceCh, error) {
 	//1.识别操作系统
-	nmap := hackflow.NewNmap(s.ctx)
-	IPAndOSCh := nmap.OSDection(&hackflow.OSDectionConfig{
-		HostCh:    ipCh,
-		Timeout:   1 * time.Minute,
-		BatchSize: 20,
+	IPAndOSCh := hackflow.NewOSDetector(s.ctx).Run(&hackflow.OSDectionConfig{
+		BaseConfig: GetDefaultBaseConfig(s.task.ID),
+		HostCh:     ipCh,
+		Timeout:    1 * time.Minute,
+		BatchSize:  20,
 	}).GetIPAndOSCh()
 	//2.扫描端口
-	portScanner := hackflow.NewPortScanner(s.ctx, 20*time.Second)
-	IPAndPortCh, err := portScanner.ConnectScan(
+	IPAndPortCh, err := hackflow.NewPortScanner(s.ctx, 20*time.Second).ConnectScan(
 		&hackflow.ScanConfig{
+			BaseConfig:   GetDefaultBaseConfig(s.task.ID),
 			HostCh:       redis.SaveIPAndOS(IPAndOSCh).GetIPCh(),
 			RoutineCount: 1000,
 			PortRange:    hackflow.NmapTop1000,
@@ -111,18 +142,17 @@ func (s *scanner) HostScanStage(ipCh chan interface{}) (hackflow.IPAndPortSevice
 		return nil, err
 	}
 	//3.扫描服务
-	portServiceCh := nmap.ServiceDection(&hackflow.ServiceDectionConfig{
-		TargetCh:  redis.SaveIPAndPort(IPAndPortCh),
-		Timeout:   2 * time.Minute,
-		BatchSize: 30,
+	portServiceCh := hackflow.NewPortServiceDetector(s.ctx).Run(&hackflow.ServiceDectionConfig{
+		BaseConfig: GetDefaultBaseConfig(s.task.ID),
+		TargetCh:   redis.SaveIPAndPort(IPAndPortCh),
+		Timeout:    2 * time.Minute,
+		BatchSize:  30,
 	}).GetPortServiceCh()
 	return portServiceCh, nil
 }
 
 //WebScanStage web服务扫描阶段
-func (s *scanner) WebScanStage(portServiceCh hackflow.IPAndPortSeviceCh, webDirDictionary io.Reader) error {
-	//1.提取web服务
-	urlCh := redis.SavePortService(portServiceCh, s.companyID).GetWebServiceCh()
+func (s *scanner) WebScanStage(urlCh chan interface{}, webDirDictionary io.Reader) error {
 	requestCh := hackflow.GenRequest(s.ctx, hackflow.GenRequestConfig{
 		URLCh:       urlCh,
 		MethodList:  []string{http.MethodGet},
@@ -154,9 +184,10 @@ func (s *scanner) WebScanStage(portServiceCh hackflow.IPAndPortSeviceCh, webDirD
 		return err
 	}
 	//4.存储响应报文，并对web服务进行指纹识别
-	fingerprintCh, err := hackflow.DectWhatWeb(s.ctx, &hackflow.DectWhatWebConfig{
+	fingerprintCh, err := hackflow.NewWhatWeb(s.ctx).Run(&hackflow.DectWhatWebConfig{
+		BaseConfig:   GetDefaultBaseConfig(s.task.ID),
 		RoutineCount: 100,
-		TargetCh:     redis.SaveHttpResp(parsedRespCh, s.companyID),
+		TargetCh:     redis.SaveHttpResp(parsedRespCh, s.task.CompanyID),
 	})
 	if err != nil {
 		zap.L().Error("dectWhatWeb failed,err:", zap.Error(err))
@@ -164,26 +195,27 @@ func (s *scanner) WebScanStage(portServiceCh hackflow.IPAndPortSeviceCh, webDirD
 	}
 	zap.L().Debug("hackflow.dectWhatWeb return")
 	//5.对web服务进行目录扫描
-	respCh, err := hackflow.BruteForceURL(s.ctx, &hackflow.BruteForceURLConfig{
-		BaseURLCh:           redis.SaveFingerprint(fingerprintCh).GetURLCh(),
-		RoutineCount:        100,
-		Proxy:               s.proxy,
-		Dictionary:          webDirDictionary,
-		RandomAgent:         true,
-		StatusCodeBlackList: hackflow.DefaultStatusCodeBlackList,
-	})
-	if err != nil {
-		zap.L().Error("burte force url failed,err:", zap.Error(err))
-		return err
-	}
-	//6.存储目录扫描结果
-	redis.SaveHttpResp(respCh, s.companyID)
+	_ = fingerprintCh
+	// respCh, err := hackflow.NewDirSearchGo(s.ctx).Run(&hackflow.BruteForceURLConfig{
+	// 	BaseURLCh:           redis.SaveFingerprint(fingerprintCh).GetURLCh(),
+	// 	RoutineCount:        100,
+	// 	Proxy:               s.proxy,
+	// 	Dictionary:          webDirDictionary,
+	// 	RandomAgent:         true,
+	// 	StatusCodeBlackList: hackflow.DefaultStatusCodeBlackList,
+	// })
+	// if err != nil {
+	// 	zap.L().Error("burte force url failed,err:", zap.Error(err))
+	// 	return err
+	// }
+	// //6.存储目录扫描结果
+	// redis.SaveHttpResp(respCh, s.task.CompanyID)
 	return nil
 }
 
 //run 开始扫描
 func (s *scanner) Run(scanArea string, webDirDictionary io.Reader) error {
-	ipCh, err := s.TransformationStage(scanArea)
+	ipCh, err := s.TransformationStage()
 	if err != nil {
 		return err
 	}
@@ -192,8 +224,10 @@ func (s *scanner) Run(scanArea string, webDirDictionary io.Reader) error {
 	if err != nil {
 		return err
 	}
+	//1.提取web服务
+	urlCh := redis.SavePortService(ipAndPortServiceCh, s.task.CompanyID).GetWebServiceCh()
 	zap.L().Debug("s.HostScanStage return")
-	if err := s.WebScanStage(ipAndPortServiceCh, webDirDictionary); err != nil {
+	if err := s.WebScanStage(urlCh, webDirDictionary); err != nil {
 		return err
 	}
 	zap.L().Debug("s.WebScanStage return")

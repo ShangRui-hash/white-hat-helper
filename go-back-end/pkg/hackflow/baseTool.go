@@ -52,12 +52,15 @@ func (b *baseTool) GetExecPath() (string, error) {
 }
 
 //WaitCtxDone 等待ctx的信号，结束进程
-func (b *baseTool) WaitCtxDone(p *os.Process) {
+func (b *baseTool) WaitCtxDone(p *os.Process, callAfterCtxDone func(t Tool)) {
 	<-b.ctx.Done()
 	if err := p.Kill(); err != nil {
 		logrus.Error("cmd.Process.Kill failed,err:", err)
 	}
 	if err := p.Release(); err != nil {
 		logrus.Error("cmd.Process.Release failed,err:", err)
+	}
+	if callAfterCtxDone != nil {
+		callAfterCtxDone(b)
 	}
 }

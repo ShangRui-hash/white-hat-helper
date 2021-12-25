@@ -21,11 +21,6 @@ func AddTask(param *param.ParamAddTask) (*models.Task, error) {
 		zap.L().Error("mysql.AddTask failed", zap.Error(err))
 		return nil, err
 	}
-	//2.频繁改动的信息存入redis
-	if err := redis.InitTaskStatus(id); err != nil {
-		zap.L().Error("redis.InitTaskStatus failed", zap.Error(err))
-		return nil, err
-	}
 	//3.获取存入的信息，返回给前端
 	return GetTaskByID(id)
 }
@@ -53,7 +48,7 @@ func GetTaskByID(id int64) (*models.Task, error) {
 	task.CompanyName = company.Name
 	task.ScanAreaList = strings.Split(task.ScanArea, ",")
 	//2.获取运行状态
-	status, err := redis.GetTaskStatusText(id)
+	status, err := redis.GetTaskStatus(id)
 	if err != nil {
 		return nil, err
 	}
@@ -68,13 +63,13 @@ func GetTaskList(param *param.Page) ([]*models.Task, error) {
 		return nil, err
 	}
 	//2.获取运行状态
-	for _, task := range tasks {
-		status, err := redis.GetTaskStatusText(task.ID)
+	for i := range tasks {
+		status, err := redis.GetTaskStatus(tasks[i].ID)
 		if err != nil {
 			return nil, err
 		}
-		task.Status = status
-		task.ScanAreaList = strings.Split(task.ScanArea, ",")
+		tasks[i].Status = status
+		tasks[i].ScanAreaList = strings.Split(tasks[i].ScanArea, ",")
 	}
 	return tasks, nil
 }
@@ -92,42 +87,32 @@ func DeleteTask(id int64) error {
 	return nil
 }
 
-func StartTask(taskID int64) error {
+func StartTask(taskID int64) (map[string]string, error) {
 	task, err := mysql.GetTaskByID(taskID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	dict, err := os.Open(settings.Conf.DictPath)
 	if err != nil {
 		zap.L().Error("open dirsearch.txt failed,err:", zap.Error(err))
-		return err
+		return nil, err
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	//启动协程
-	scanner := NewScanner(ctx, settings.Conf.Proxy, task.CompanyID)
+	scanner := NewScanner(ctx, settings.Conf.Proxy, task)
 	if err := scanner.Run(task.ScanArea, dict); err != nil {
-		return err
+		return nil, err
 	}
 	//维护一个任务id和退出函数的映射
 	memory.RegisterTaskCancelFunc(task.ID, cancel)
-	//更新redis
-	if err := redis.BeginTask(taskID); err != nil {
-		return err
-	}
-	return nil
+	//获取任务状态
+	return redis.GetTaskStatus(task.ID)
 }
 
-func StopTask(taskID int64) error {
+func StopTask(taskID int64) (map[string]string, error) {
 	//通知所有相关的协程退出
 	if err := memory.StopTask(taskID); err != nil {
-		return err
+		return nil, err
 	}
-	//删除redis中的pid
-	if err := redis.ClearTaskPid(taskID); err != nil {
-		return err
-	}
-	if err := redis.StopTask(taskID); err != nil {
-		return err
-	}
-	return nil
+	return redis.GetTaskStatus(taskID)
 }

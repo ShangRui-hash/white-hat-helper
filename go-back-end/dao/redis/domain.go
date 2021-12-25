@@ -5,6 +5,7 @@ import (
 	"net"
 	"net/url"
 	"strings"
+	"sync"
 	"web_app/models"
 	"web_app/pkg/hackflow"
 
@@ -80,11 +81,13 @@ func saveOneIPDomain(ip, domain string, companyID int64) error {
 		zap.L().Error("rdb.ZAdd failed,err:", zap.Error(err))
 		return err
 	}
+
 	//维护一个域名有序集合,键为公司id
 	if _, err := rdb.ZAdd(GetCompanyDomainZSetKey(companyID), redis.Z{Score: 0, Member: domain}).Result(); err != nil {
 		zap.L().Error("rdb.ZAdd failed,err:", zap.Error(err))
 		return err
 	}
+	zap.L().Info("save subdomain:", zap.String("ip", ip), zap.String("domain", domain))
 	//关联ip和域名
 	//以ip为键，域名为值
 	if _, err := rdb.SAdd(DomainSetKeyPrefix+ip, domain).Result(); err != nil {
@@ -103,6 +106,8 @@ func saveOneIPDomain(ip, domain string, companyID int64) error {
 func SaveIPDomain(inputCh <-chan hackflow.DomainIPs, companyID int64) chan interface{} {
 	ipSet := mapset.NewSet()
 	outputCh := make(chan interface{}, 10240)
+	var wg sync.WaitGroup
+	wg.Add(1)
 	//读取数据库中已有的ip数据
 	go func() {
 		ips, err := GetAllIPsByCompanyID(companyID)
@@ -114,13 +119,17 @@ func SaveIPDomain(inputCh <-chan hackflow.DomainIPs, companyID int64) chan inter
 			if !ipSet.Contains(ips[i]) {
 				outputCh <- ips[i]
 				ipSet.Add(ips[i])
+			} else {
+				zap.L().Info("ipSet.Contains ip:%v", zap.String("ip", ips[i]))
 			}
 		}
+		wg.Done()
 	}()
 	//存储ip和域名之间的关系
+	wg.Add(1)
 	go func() {
 		for input := range inputCh {
-			fmt.Printf("save ip:%v,domain:%s\n", input.IP, input.Domain)
+			zap.L().Debug("get a input:", zap.String("input:", fmt.Sprintf("%v", input)))
 			for _, ip := range input.IP {
 				if err := saveOneIPDomain(ip, input.Domain, companyID); err != nil {
 					zap.L().Error("redis saveIPDomain failed,err:", zap.Error(err))
@@ -129,9 +138,15 @@ func SaveIPDomain(inputCh <-chan hackflow.DomainIPs, companyID int64) chan inter
 				if !ipSet.Contains(ip) {
 					outputCh <- ip
 					ipSet.Add(ip)
+				} else {
+					zap.L().Info("ipSet.Contains ip:%v", zap.String("ip", ip))
 				}
 			}
 		}
+		wg.Done()
+	}()
+	go func() {
+		wg.Wait()
 		close(outputCh)
 	}()
 	return outputCh

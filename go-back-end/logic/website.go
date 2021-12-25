@@ -27,7 +27,7 @@ func StartURLDirScan(param *param.ParamStartURLDirScan) error {
 	urlCh := make(chan interface{}, 1)
 	urlCh <- param.URL
 	close(urlCh)
-	respCh, err := hackflow.BruteForceURL(ctx, &hackflow.BruteForceURLConfig{
+	respCh, err := hackflow.NewDirSearchGo(ctx).Run(&hackflow.BruteForceURLConfig{
 		BaseURLCh:           urlCh,
 		RoutineCount:        100,
 		Proxy:               settings.Conf.Proxy,

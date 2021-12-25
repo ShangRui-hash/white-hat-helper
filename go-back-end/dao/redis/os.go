@@ -22,6 +22,7 @@ func SaveIPAndOS(IPAndOSCh chan *hackflow.IPAndOS) hackflow.IPAndOSCh {
 			outCh <- ipAndOS
 			doSaveIPAndOS(ipAndOS.IP, ipAndOS.OS)
 		}
+		close(outCh)
 	}()
 	return outCh
 }

@@ -54,6 +54,7 @@ func NewDirSearch(ctx context.Context) *dirSearch {
 var resultReg = regexp.MustCompile(`\[\d{2}:\d{2}:\d{2}\]\s{1}(\d{3})\s+-\s+([0-9A-Z]{2,5})\s+-\s+(.+)`)
 
 type DirSearchConfig struct {
+	*BaseConfig
 	URL                 string   `flag:"-u"`
 	HTTPMethod          string   `flag:"-m"`
 	Proxy               string   `flag:"--proxy"`
@@ -93,7 +94,7 @@ func (d *dirSearch) Run(config DirSearchConfig) *dirSearch {
 			logger.Error("Execute failed when Wait:" + err.Error())
 		}
 	}()
-	go d.WaitCtxDone(cmd.Process)
+	go d.WaitCtxDone(cmd.Process, config.CallAfterCtxDone)
 	return d
 }
 

@@ -10,15 +10,19 @@ const (
 	IPOSMapKey                  = "ip_os_map"
 	IPPortSetKeyPrefix          = "ip_port_set::"
 	IPPortDetailKeyPrefix       = "ip_port_detail::"
-	TaskPidHashKey              = "task_pid_hash"
-	URLSetKeyPrefix             = "urlset::"     //ip的url集合
-	URLDetailHashKeyPrefix      = "urldetail::"  //url的详情hash表
-	SubDirZSetKeyPrefix         = "subdirzset::" //url的目录集合
+	TaskStatusHashKeyPrefix     = "task_status_hash::" //任务状态hash表
+	URLSetKeyPrefix             = "urlset::"           //ip的url集合
+	URLDetailHashKeyPrefix      = "urldetail::"        //url的详情hash表
+	SubDirZSetKeyPrefix         = "subdirzset::"       //url的目录集合
 	URLFingerprintSetKeyPrefix  = "urlfingerprintset::"
 	CompanyIPSetKeyPrefix       = "ipzset::company_id::"      //公司的ip集合
 	CompanyDomainSetKeyPrefix   = "domainzset::company_id::"  //公司的域名集合
 	CompanyWebSiteZSetKeyPrefix = "websitezset::company_id::" //公司的web站点集合
 )
+
+func GetTaskStatusHashKey(taskID int64) string {
+	return fmt.Sprintf("%s%d", TaskStatusHashKeyPrefix, taskID)
+}
 
 //GetIPSetKey 获取公司的IP集合的key
 func GetCompanyIPZSetKey(companyID int64) string {

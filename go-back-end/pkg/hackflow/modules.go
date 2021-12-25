@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/Ullaakut/nmap"
+	"github.com/sirupsen/logrus"
 )
 
 //UNKNOWN_OS 未知操作系统
@@ -63,6 +64,7 @@ func (i IPAndOSCh) GetIPCh() chan interface{} {
 			IPCh <- ipAndOs.IP
 		}
 		close(IPCh)
+		logrus.Error("IPCh closed")
 	}()
 	return IPCh
 }

@@ -26,14 +26,29 @@ func (d DectWhatWebResultCh) GetURLCh() chan interface{} {
 	return urlCh
 }
 
+type whatWeb struct {
+	baseTool
+}
+
+func NewWhatWeb(ctx context.Context) *whatWeb {
+	return &whatWeb{
+		baseTool: baseTool{
+			ctx:  ctx,
+			name: "whatweb",
+			desp: "探测网站的指纹信息",
+		},
+	}
+}
+
 //DecWhatWebConfig 是DectWhatWeb的配置
 type DectWhatWebConfig struct {
+	*BaseConfig
 	TargetCh     chan *ParsedHttpResp
 	RoutineCount int
 }
 
 // DectWhatWeb 根据响应报文来探测网站的指纹信息
-func DectWhatWeb(ctx context.Context, config *DectWhatWebConfig) (chan *DectWhatWebResult, error) {
+func (w *whatWeb) Run(config *DectWhatWebConfig) (chan *DectWhatWebResult, error) {
 	resultCh := make(chan *DectWhatWebResult, 1024)
 	wappalyzerClient, err := wappalyzer.New()
 	if err != nil {
@@ -48,7 +63,10 @@ func DectWhatWeb(ctx context.Context, config *DectWhatWebConfig) (chan *DectWhat
 		LOOP:
 			for {
 				select {
-				case <-ctx.Done():
+				case <-w.ctx.Done():
+					if config.CallAfterCtxDone != nil {
+						config.CallAfterCtxDone(w)
+					}
 					break LOOP
 				case target, ok := <-config.TargetCh:
 					if !ok {
@@ -64,9 +82,15 @@ func DectWhatWeb(ctx context.Context, config *DectWhatWebConfig) (chan *DectWhat
 			wg.Done()
 		}()
 	}
+	if config.CallAfterBegin != nil {
+		config.CallAfterBegin(w)
+	}
 	go func() {
 		wg.Wait()
 		close(resultCh)
+		if config.CallAfterComplete != nil {
+			config.CallAfterComplete(w)
+		}
 	}()
 	return resultCh, nil
 }

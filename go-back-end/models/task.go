@@ -13,11 +13,11 @@ type MetaTime struct {
 
 type Task struct {
 	MetaID
-	CompanyID int64 `json:"company_id" db:"company_id"`
 	MetaTime
-	Name         string   `json:"name" db:"name"`
-	Status       string   `json:"status"`
-	ScanArea     string   `json:"scan_area_raw" db:"scan_area"`
-	ScanAreaList []string `json:"scan_area"`
-	CompanyName  string   `json:"company_name" db:"company_name"`
+	CompanyID    int64             `json:"company_id" db:"company_id"`
+	Status       map[string]string `json:"status"`
+	ScanAreaList []string          `json:"scan_area"`
+	Name         string            `json:"name" db:"name"`
+	ScanArea     string            `json:"scan_area_raw" db:"scan_area"`
+	CompanyName  string            `json:"company_name" db:"company_name"`
 }

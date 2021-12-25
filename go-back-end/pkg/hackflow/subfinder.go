@@ -4,20 +4,21 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"os/exec"
 
 	"github.com/sirupsen/logrus"
 )
 
-type subfinder struct {
+type Subfinder struct {
 	baseTool
 	err    error
 	stdout io.ReadCloser
 }
 
-func NewSubfinder(ctx context.Context) *subfinder {
-	return &subfinder{
+func NewSubfinder(ctx context.Context) *Subfinder {
+	return &Subfinder{
 		baseTool: baseTool{
 			ctx:       ctx,
 			name:      SUBFINDER,
@@ -29,9 +30,9 @@ func NewSubfinder(ctx context.Context) *subfinder {
 }
 
 type SubfinderRunConfig struct {
-	Stdin                          io.Reader
+	*BaseConfig
+	DomainCh                       chan string
 	Proxy                          string `flag:"-proxy"`
-	Domain                         string `flag:"-d"`
 	RoutineCount                   int    `flag:"-t"`
 	RemoveWildcardAndDeadSubdomain bool   `flag:"-nW"`
 	OutputInHostIPFormat           bool   `flag:"-oI"`
@@ -39,19 +40,34 @@ type SubfinderRunConfig struct {
 	Silent                         bool   `flag:"-silent"`
 }
 
-func (s *subfinder) Run(config *SubfinderRunConfig) (subfinder *subfinder) {
+func (s *Subfinder) Run(config *SubfinderRunConfig) (Subfinder *Subfinder) {
+	var err error
+	defer func() {
+		if err != nil {
+			s.err = err
+			if config.CallAfterFailed != nil {
+				config.CallAfterFailed(s)
+			}
+		}
+	}()
 	args := append([]string{"-nC"}, parseConfig(*config)...)
 	execPath, err := s.GetExecPath()
 	if err != nil {
-		s.err = err
 		return s
 	}
 	cmd := exec.Command(execPath, args...)
-	cmd.Stdin = config.Stdin
-	//获取一个有名管道，不要使用我们自定义的Pipe类型,因为自定义的Pipe类型是无缓冲的
+	stdinpipe, err := cmd.StdinPipe()
+	if err != nil {
+		return s
+	}
+	go func() {
+		for domain := range config.DomainCh {
+			fmt.Fprintln(stdinpipe, domain)
+		}
+		stdinpipe.Close()
+	}()
 	stdpipe, err := cmd.StdoutPipe()
 	if err != nil {
-		s.err = err
 		return s
 	}
 	s.stdout = stdpipe
@@ -59,19 +75,23 @@ func (s *subfinder) Run(config *SubfinderRunConfig) (subfinder *subfinder) {
 		logrus.Error("Execute failed when Start:", err)
 		return s
 	}
-	logger.Debugf("%s 启动成功\n", s.name)
+	if config.CallAfterBegin != nil {
+		config.CallAfterBegin(s)
+	}
 	go func() {
 		if err := cmd.Wait(); err != nil {
 			logrus.Error("Execute failed when Wait:", err)
 		}
-		logger.Debugf("%s 已退出\n", s.name)
+		if config.CallAfterComplete != nil {
+			config.CallAfterComplete(s)
+		}
 		s.stdout.Close()
 	}()
-	go s.WaitCtxDone(cmd.Process)
+	go s.WaitCtxDone(cmd.Process, config.CallAfterCtxDone)
 	return s
 }
 
-func (s *subfinder) GetStdout() (io.Reader, error) {
+func (s *Subfinder) GetStdout() (io.Reader, error) {
 	if s.err != nil {
 		return nil, s.err
 	}
@@ -84,10 +104,7 @@ type subfinderJsonResult struct {
 }
 
 //Result 返回解析后的结果
-func (s *subfinder) Result() (<-chan DomainIPs, error) {
-	if s.err != nil {
-		return nil, s.err
-	}
+func (s *Subfinder) Result() (<-chan DomainIPs, error) {
 	ipdomainCh := make(chan DomainIPs, 1024)
 	go func() {
 		scanner := bufio.NewScanner(s.stdout)
